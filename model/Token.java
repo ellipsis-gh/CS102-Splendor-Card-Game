@@ -1,0 +1,5 @@
+package com.splendor.model;
+
+public enum Token {
+    GREEN, WHITE, BLUE, BLACK, RED, GOLD;
+}
