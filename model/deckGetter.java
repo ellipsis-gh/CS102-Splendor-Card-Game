@@ -2,8 +2,8 @@ package model;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.IOException; // Added this import
-import java.io.FileNotFoundException; // Added this import
+import java.io.IOException; 
+import java.io.FileNotFoundException; 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,5 +60,5 @@ public class deckGetter {
 
         return allDecks;
     }
-    
+
 }
