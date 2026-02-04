@@ -1,4 +1,4 @@
-package com.splendor.model;
+package model;
 
 import java.util.ArrayList;
 import java.util.HashMap;
