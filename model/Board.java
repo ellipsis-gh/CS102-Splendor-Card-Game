@@ -6,7 +6,7 @@ import java.util.Map;
 
 public class Board {
     private final Map<Token, Integer> availableTokens = new HashMap<>();
-    private final List<Noble> nobles;
+    private       List<Noble> nobles;
     private final Deck deck1;
     private final Deck deck2;
     private final Deck deck3;
