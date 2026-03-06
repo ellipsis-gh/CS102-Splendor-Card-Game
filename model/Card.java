@@ -1,5 +1,4 @@
-package com.splendor.model;
-
+package model;
 import java.util.Map;
 
 public class Card {
