@@ -82,6 +82,22 @@ public class Player {
         nobles.add(noble);
     }
 
+    public boolean canGetNoble() {
+        Map<Token, Integer> playerBonus = player.getBonuses();
+
+        for (Map.Entry<Token, Integer> entry : cost.entrySet()) {
+            Token token = entry.getKey();
+            int required = entry.getValue();
+
+            if (playerBonus.getOrDefault(token, 0) < required) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    
+
     public int getScore() {
         int cardPoints = purchasedCards.stream().mapToInt(Card::getPrestigePoints).sum();
         int noblePoints = nobles.stream().mapToInt(Noble::getPrestigePoints).sum();
