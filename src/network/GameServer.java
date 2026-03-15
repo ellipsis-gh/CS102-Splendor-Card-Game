@@ -1,0 +1,290 @@
+package network;
+
+import model.Board;
+import model.Card;
+import model.CardLoader;
+import model.Deck;
+import model.Game;
+import model.Noble;
+import model.Player;
+import model.Token;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
+
+public class GameServer {
+    private final int port;
+
+    public GameServer(int port) {
+        this.port = port;
+    }
+
+    public void start() {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Server started on port " + port);
+            System.out.println("Waiting for Player 1...");
+
+            Socket socket1 = serverSocket.accept();
+            ClientHandler client1 = new ClientHandler(socket1);
+            client1.send("Connected as Player 1.");
+            client1.send("Enter your name:");
+
+            String name1 = client1.readLine();
+            if (name1 == null || name1.isBlank()) {
+                name1 = "Player 1";
+            }
+            client1.setPlayerName(name1);
+
+            System.out.println(name1 + " connected.");
+
+            client1.send("Waiting for Player 2...");
+
+            System.out.println("Waiting for Player 2...");
+            Socket socket2 = serverSocket.accept();
+            ClientHandler client2 = new ClientHandler(socket2);
+            client2.send("Connected as Player 2.");
+            client2.send("Enter your name:");
+
+            String name2 = client2.readLine();
+            if (name2 == null || name2.isBlank()) {
+                name2 = "Player 2";
+            }
+            client2.setPlayerName(name2);
+
+            System.out.println(name2 + " connected.");
+
+            runGame(client1, client2);
+
+        } catch (IOException e) {
+            System.out.println("Server error: " + e.getMessage());
+        }
+    }
+
+    private void runGame(ClientHandler client1, ClientHandler client2) {
+        try {
+            Game game = createGame(client1.getPlayerName(), client2.getPlayerName());
+
+            client1.send("Both players connected. Starting game...");
+            client2.send("Both players connected. Starting game...");
+
+            boolean gameOver = false;
+
+            while (!gameOver) {
+                Player current = game.getCurrentPlayer();
+                ClientHandler currentClient = current.getName().equals(client1.getPlayerName()) ? client1 : client2;
+                ClientHandler otherClient = currentClient == client1 ? client2 : client1;
+
+                broadcastState(game, client1, client2);
+
+                currentClient.send("YOUR TURN");
+                currentClient.send("Commands:");
+                currentClient.send("TAKE3 green blue red");
+                currentClient.send("TAKE2 red");
+                currentClient.send("BUY 1-0");
+                currentClient.send("BUYR 0");
+                currentClient.send("RESERVE 1-0");
+                currentClient.send("QUIT");
+
+                otherClient.send("WAITING FOR " + current.getName());
+
+                boolean validMove = false;
+                while (!validMove) {
+                    String command = currentClient.readLine();
+
+                    if (command == null) {
+                        otherClient.send(current.getName() + " disconnected. Game over.");
+                        client1.close();
+                        client2.close();
+                        return;
+                    }
+
+                    command = command.trim();
+
+                    if (command.equalsIgnoreCase("QUIT")) {
+                        currentClient.send("You quit the game.");
+                        otherClient.send(current.getName() + " quit the game.");
+                        client1.close();
+                        client2.close();
+                        return;
+                    }
+
+                    validMove = handleCommand(game, current, command, currentClient);
+
+                    if (!validMove) {
+                        currentClient.send("Invalid move. Try again.");
+                    }
+                }
+
+                if (game.checkAndAwardNoble(current) != null) {
+                    currentClient.send("A noble visits you.");
+                    otherClient.send(current.getName() + " received a noble.");
+                }
+
+                if (current.getScore() >= 15) {
+                    broadcastState(game, client1, client2);
+                    client1.send("WINNER: " + current.getName());
+                    client2.send("WINNER: " + current.getName());
+                    gameOver = true;
+                } else {
+                    game.nextTurn();
+                }
+            }
+
+            client1.close();
+            client2.close();
+
+        } catch (Exception e) {
+            client1.send("Server game error: " + e.getMessage());
+            client2.send("Server game error: " + e.getMessage());
+            client1.close();
+            client2.close();
+        }
+    }
+
+    private void broadcastState(Game game, ClientHandler c1, ClientHandler c2) {
+        String boardText = NetworkFormatter.formatBoard(game.getBoard());
+        String p1Text = NetworkFormatter.formatPlayer(game.getPlayers().get(0));
+        String p2Text = NetworkFormatter.formatPlayer(game.getPlayers().get(1));
+
+        c1.send(boardText);
+        c1.send(p1Text);
+        c1.send(p2Text);
+
+        c2.send(boardText);
+        c2.send(p1Text);
+        c2.send(p2Text);
+    }
+
+    private Game createGame(String player1Name, String player2Name) throws IOException {
+        List<Card> allCards = CardLoader.loadCards("Splendor Cards.csv");
+
+        List<Card> level1 = new ArrayList<>();
+        List<Card> level2 = new ArrayList<>();
+        List<Card> level3 = new ArrayList<>();
+
+        for (Card c : allCards) {
+            if (c.getLevel() == 1) {
+                level1.add(c);
+            } else if (c.getLevel() == 2) {
+                level2.add(c);
+            } else {
+                level3.add(c);
+            }
+        }
+
+        Deck d1 = new Deck(1, level1);
+        Deck d2 = new Deck(2, level2);
+        Deck d3 = new Deck(3, level3);
+        d1.shuffle();
+        d2.shuffle();
+        d3.shuffle();
+
+        List<Noble> allNobles = CardLoader.createDefaultNobles();
+        List<Noble> nobles = new ArrayList<>();
+        for (int i = 0; i < 3 && i < allNobles.size(); i++) {
+            nobles.add(allNobles.get(i));
+        }
+
+        Board board = new Board(nobles, d1, d2, d3, 2);
+
+        List<Player> players = new ArrayList<>();
+        players.add(new Player(player1Name, true));
+        players.add(new Player(player2Name, true));
+
+        return new Game(board, players);
+    }
+
+    private boolean handleCommand(Game game, Player p, String command, ClientHandler client) {
+        String[] parts = command.split("\\s+");
+        if (parts.length == 0) {
+            return false;
+        }
+
+        try {
+            switch (parts[0].toUpperCase()) {
+                case "TAKE3":
+                    if (parts.length != 4) return false;
+                    Token t1 = parseToken(parts[1]);
+                    Token t2 = parseToken(parts[2]);
+                    Token t3 = parseToken(parts[3]);
+
+                    if (t1 == null || t2 == null || t3 == null) return false;
+                    if (!game.canTakeThreeDifferentGems(p, t1, t2, t3)) return false;
+
+                    game.takeThreeDifferentGems(p, t1, t2, t3);
+                    client.send("OK: Took " + t1 + " " + t2 + " " + t3);
+                    return true;
+
+                case "TAKE2":
+                    if (parts.length != 2) return false;
+                    Token t = parseToken(parts[1]);
+
+                    if (t == null || !game.canTakeTwoSameGems(p, t)) return false;
+
+                    game.takeTwoSameGems(p, t);
+                    client.send("OK: Took 2 " + t);
+                    return true;
+
+                case "BUY":
+                    if (parts.length != 2) return false;
+                    String[] buyParts = parts[1].split("-");
+                    if (buyParts.length != 2) return false;
+
+                    int level = Integer.parseInt(buyParts[0]);
+                    int slot = Integer.parseInt(buyParts[1]);
+
+                    if (!game.canBuyVisibleCard(p, level, slot)) return false;
+
+                    game.buyVisibleCard(p, level, slot);
+                    client.send("OK: Bought visible card.");
+                    return true;
+
+                case "BUYR":
+                    if (parts.length != 2) return false;
+                    int reservedIndex = Integer.parseInt(parts[1]);
+
+                    if (!game.canBuyReservedCard(p, reservedIndex)) return false;
+
+                    game.buyReservedCard(p, reservedIndex);
+                    client.send("OK: Bought reserved card.");
+                    return true;
+
+                case "RESERVE":
+                    if (parts.length != 2) return false;
+                    String[] reserveParts = parts[1].split("-");
+                    if (reserveParts.length != 2) return false;
+
+                    int reserveLevel = Integer.parseInt(reserveParts[0]);
+                    int reserveSlot = Integer.parseInt(reserveParts[1]);
+
+                    if (!game.canReserveVisibleCard(p, reserveLevel, reserveSlot)) return false;
+
+                    game.reserveVisibleCard(p, reserveLevel, reserveSlot);
+                    client.send("OK: Reserved visible card.");
+                    return true;
+
+                default:
+                    return false;
+            }
+        } catch (Exception e) {
+            client.send("ERROR: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private Token parseToken(String s) {
+        if (s == null) return null;
+
+        switch (s.toLowerCase()) {
+            case "green": return Token.GREEN;
+            case "white": return Token.WHITE;
+            case "blue": return Token.BLUE;
+            case "black": return Token.BLACK;
+            case "red": return Token.RED;
+            default: return null;
+        }
+    }
+}

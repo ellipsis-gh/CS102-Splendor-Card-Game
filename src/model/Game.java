@@ -1,4 +1,4 @@
-package com.splendor.model;
+package model;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -219,6 +219,175 @@ public class Game {
         player.addTokens(token, 2);
     }
 
+    public boolean canBuyVisibleCard(Player player, int level, int slot) {
+    if (!player.equals(getCurrentPlayer())) {
+        return false;
+    }
+
+    if (gameOver) {
+        return false;
+    }
+
+    if (level < 1 || level > 3 || slot < 0 || slot >= 4) {
+        return false;
+    }
+
+    Card[] row = board.getVisibleCards(level);
+    Card card = row[slot];
+
+    if (card == null) {
+        return false;
+    }
+
+    return player.canAffordCard(card);
+}
+
+public void buyVisibleCard(Player player, int level, int slot) {
+    if (!canBuyVisibleCard(player, level, slot)) {
+        throw new IllegalArgumentException("Invalid move: cannot buy visible card");
+    }
+
+    Card card = board.takeCard(level, slot);
+    board.refillMarket();
+
+    player.payForCard(card, board);
+    player.buyCard(card);
+}
+
+public boolean canBuyReservedCard(Player player, int reservedIndex) {
+    if (!player.equals(getCurrentPlayer())) {
+        return false;
+    }
+
+    if (gameOver) {
+        return false;
+    }
+
+    if (reservedIndex < 0 || reservedIndex >= player.getHand().size()) {
+        return false;
+    }
+
+    Card card = player.getHand().get(reservedIndex);
+    return player.canAffordCard(card);
+}
+
+public void buyReservedCard(Player player, int reservedIndex) {
+    if (!canBuyReservedCard(player, reservedIndex)) {
+        throw new IllegalArgumentException("Invalid move: cannot buy reserved card");
+    }
+
+    Card card = player.getHand().get(reservedIndex);
+
+    player.payForCard(card, board);
+    player.buyCard(card);
+}
+
+public boolean canReserveVisibleCard(Player player, int level, int slot) {
+    if (!player.equals(getCurrentPlayer())) {
+        return false;
+    }
+
+    if (gameOver) {
+        return false;
+    }
+
+    if (player.getHand().size() >= 3) {
+        return false;
+    }
+
+    if (level < 1 || level > 3 || slot < 0 || slot >= 4) {
+        return false;
+    }
+
+    Card[] row = board.getVisibleCards(level);
+    return row[slot] != null;
+}
+
+public void reserveVisibleCard(Player player, int level, int slot) {
+    if (!canReserveVisibleCard(player, level, slot)) {
+        throw new IllegalArgumentException("Invalid move: cannot reserve visible card");
+    }
+
+    Card card = board.takeCard(level, slot);
+    board.refillMarket();
+
+    player.reserveCard(card);
+
+    if (board.getAvailableTokens().getOrDefault(Token.GOLD, 0) > 0) {
+        player.addTokens(Token.GOLD, 1);
+        board.removeToken(Token.GOLD, 1);
+    }
+}
+
+public boolean canReserveDeckCard(Player player, int level) {
+    if (!player.equals(getCurrentPlayer())) {
+        return false;
+    }
+
+    if (gameOver) {
+        return false;
+    }
+
+    if (player.getHand().size() >= 3) {
+        return false;
+    }
+
+    if (level < 1 || level > 3) {
+        return false;
+    }
+
+    return board.deckHasCards(level);
+}
+
+public void reserveDeckCard(Player player, int level) {
+    if (!canReserveDeckCard(player, level)) {
+        throw new IllegalArgumentException("Invalid move: cannot reserve deck card");
+    }
+
+    Card card = board.drawFromDeck(level);
+    player.reserveCard(card);
+
+    if (board.getAvailableTokens().getOrDefault(Token.GOLD, 0) > 0) {
+        player.addTokens(Token.GOLD, 1);
+        board.removeToken(Token.GOLD, 1);
+    }
+}
+
+public Noble checkAndAwardNoble(Player player) {
+    for (Noble noble : new ArrayList<>(board.getNobles())) {
+        if (player.canGetNoble(noble)) {
+            player.receiveNoble(noble);
+            board.removeNoble(noble);
+            return noble;
+        }
+    }
+    return null;
+}
+
+
+public boolean mustReturnTokens(Player player) {
+    return player.getTotalTokenCount() > 10;
+}
+
+public int getNumTokensToReturn(Player player) {
+    return Math.max(0, player.getTotalTokenCount() - 10);
+}
+
+public void returnToken(Player player, Token token, int count) {
+    if (count <= 0) {
+        throw new IllegalArgumentException("Return count must be positive");
+    }
+
+    player.removeTokens(token, count);
+    board.addToken(token, count);
+}
+
+public Noble endTurnAndCheckNoble() {
+    Player current = getCurrentPlayer();
+    Noble noble = checkAndAwardNoble(current);
+    nextTurn();
+    return noble;
+}
     /**
      * Moves to the next player's turn.
      * Checks for game end conditions after each turn.
@@ -333,5 +502,7 @@ public class Game {
     public void endGame() {
         this.gameOver = true;
     }
+
+    
 }
 
