@@ -16,6 +16,7 @@ A console-based implementation of the Splendor card game for 2 players.
 
 ## How to Play
 
+- **Human vs AI:** At start, choose "y" to play against the AI
 - **Goal:** First player to 15 prestige points wins!
 - **Take gems:** Choose 3 different colors OR 2 of the same (need 4+ on board)
 - **Buy cards:** Pay the cost with your tokens. Your bonuses reduce the cost. Gold = wild.
@@ -30,6 +31,7 @@ Cards show: `PV:0 GREEN+ Cost: BLACKx2 BLUEx1` = 0 points, gives GREEN bonus, co
 ## Files
 
 - `model/Main.java` - Game loop and console UI
+- `model/SplendorAI.java` - Algorithmic AI (buys when possible, reserves good cards, takes needed gems)
 - `model/Board.java` - Board, tokens, cards
 - `model/Player.java` - Player state and actions
 - `model/Card.java`, `Deck.java`, `Noble.java`, `Token.java` - Game pieces

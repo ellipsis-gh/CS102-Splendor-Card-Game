@@ -129,5 +129,12 @@ public class Board {
         if (level == 3) return deck3.draw();
         return null;
     }
+
+    public boolean deckHasCards(int level) {
+        if (level == 1) return !deck1.isEmpty();
+        if (level == 2) return !deck2.isEmpty();
+        if (level == 3) return !deck3.isEmpty();
+        return false;
+    }
 }
 

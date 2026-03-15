@@ -67,9 +67,11 @@ public class Main {
         Board board = new Board(nobles, d1, d2, d3, 2);
         List<Player> players = new ArrayList<>();
         players.add(new Player("Player 1", true));
-        players.add(new Player("Player 2", true));
 
         Scanner sc = new Scanner(System.in);
+        System.out.print("Play vs AI? (y/n): ");
+        boolean vsAI = sc.nextLine().trim().toLowerCase().startsWith("y");
+        players.add(vsAI ? new Player("AI", false) : new Player("Player 2", true));
         int currentPlayer = 0;
         boolean gameOver = false;
 
@@ -88,40 +90,50 @@ public class Main {
             printPlayerStatus(p);
             System.out.println();
 
-            // Get player action
+            // Get player action (human or AI)
             boolean validAction = false;
-            while (!validAction) {
-                System.out.println("What would you like to do?");
-                System.out.println("  1 = Take 3 different gems");
-                System.out.println("  2 = Take 2 same gems (need 4+ of that color)");
-                System.out.println("  3 = Buy a card");
-                System.out.println("  4 = Reserve a card");
-                System.out.println("  q = Quit game");
-                System.out.print("Your choice: ");
+            if (p.isHuman()) {
+                while (!validAction) {
+                    System.out.println("What would you like to do?");
+                    System.out.println("  1 = Take 3 different gems");
+                    System.out.println("  2 = Take 2 same gems (need 4+ of that color)");
+                    System.out.println("  3 = Buy a card");
+                    System.out.println("  4 = Reserve a card");
+                    System.out.println("  q = Quit game");
+                    System.out.print("Your choice: ");
 
-                String input = sc.nextLine().trim().toLowerCase();
+                    String input = sc.nextLine().trim().toLowerCase();
 
-                if (input.equals("q")) {
-                    System.out.println("\nThanks for playing! Goodbye.");
-                    sc.close();
-                    return;
+                    if (input.equals("q")) {
+                        System.out.println("\nThanks for playing! Goodbye.");
+                        sc.close();
+                        return;
+                    }
+
+                    if (input.equals("1")) {
+                        validAction = doTakeThreeGems(p, board, sc);
+                    } else if (input.equals("2")) {
+                        validAction = doTakeTwoSameGems(p, board, sc);
+                    } else if (input.equals("3")) {
+                        validAction = doBuyCard(p, board, sc);
+                    } else if (input.equals("4")) {
+                        validAction = doReserveCard(p, board, sc);
+                    } else {
+                        System.out.println("Invalid choice. Please enter 1, 2, 3, 4, or q.");
+                    }
                 }
-
-                if (input.equals("1")) {
-                    validAction = doTakeThreeGems(p, board, sc);
-                } else if (input.equals("2")) {
-                    validAction = doTakeTwoSameGems(p, board, sc);
-                } else if (input.equals("3")) {
-                    validAction = doBuyCard(p, board, sc);
-                } else if (input.equals("4")) {
-                    validAction = doReserveCard(p, board, sc);
-                } else {
-                    System.out.println("Invalid choice. Please enter 1, 2, 3, 4, or q.");
-                }
+            } else {
+                validAction = doAITurn(p, board);
+                System.out.print("(Press Enter to continue) ");
+                sc.nextLine();
             }
 
             // Return excess tokens if over 10
-            returnExcessTokens(p, board, sc);
+            if (p.isHuman()) {
+                returnExcessTokens(p, board, sc);
+            } else {
+                returnExcessTokensAI(p, board);
+            }
 
             // Check for noble visit
             checkNobleVisit(p, board, sc);
@@ -393,6 +405,106 @@ public class Main {
         }
         System.out.println("Reserved: " + formatCard(card));
         return true;
+    }
+
+    private static boolean doAITurn(Player p, Board board) {
+        String action = SplendorAI.chooseAction(p, board);
+        if (action == null) {
+            System.out.println("AI could not decide. Skipping turn.");
+            return true;
+        }
+        String[] parts = action.split(":");
+        if (parts.length < 2) return false;
+
+        if (parts[0].equals("1") && parts.length >= 4) {
+            Token t1 = Token.valueOf(parts[1]);
+            Token t2 = Token.valueOf(parts[2]);
+            Token t3 = Token.valueOf(parts[3]);
+            if (board.canTakeThreeDifferent(t1, t2, t3)) {
+                board.removeToken(t1, 1);
+                board.removeToken(t2, 1);
+                board.removeToken(t3, 1);
+                p.addTokens(t1, 1);
+                p.addTokens(t2, 1);
+                p.addTokens(t3, 1);
+                System.out.println("AI takes 1 " + t1 + ", 1 " + t2 + ", 1 " + t3);
+                return true;
+            }
+        } else if (parts[0].equals("2") && parts.length >= 2) {
+            Token t = Token.valueOf(parts[1]);
+            if (board.canTakeTwo(t)) {
+                board.removeToken(t, 2);
+                p.addTokens(t, 2);
+                System.out.println("AI takes 2 " + t);
+                return true;
+            }
+        } else if (parts[0].equals("3") && parts.length >= 2) {
+            if (parts[1].equals("r") && parts.length >= 3) {
+                int idx = Integer.parseInt(parts[2]);
+                if (idx >= 0 && idx < p.getHand().size()) {
+                    Card card = p.getHand().get(idx);
+                    if (p.canAffordCard(card)) {
+                        p.payForCard(card, board);
+                        p.buyCard(card);
+                        System.out.println("AI buys reserved: " + formatCard(card));
+                        return true;
+                    }
+                }
+            } else {
+                int level = Integer.parseInt(parts[1]);
+                int slot = Integer.parseInt(parts[2]);
+                Card card = board.getVisibleCards(level)[slot];
+                if (card != null && p.canAffordCard(card)) {
+                    board.takeCard(level, slot);
+                    board.refillMarket();
+                    p.payForCard(card, board);
+                    p.buyCard(card);
+                    System.out.println("AI buys: " + formatCard(card));
+                    return true;
+                }
+            }
+        } else if (parts[0].equals("4") && parts.length >= 3) {
+            if (parts[1].equals("deck")) {
+                int level = Integer.parseInt(parts[2]);
+                Card card = board.drawFromDeck(level);
+                if (card != null && p.getHand().size() < 3) {
+                    p.reserveCard(card);
+                    if (board.getAvailableTokens().getOrDefault(Token.GOLD, 0) > 0) {
+                        board.removeToken(Token.GOLD, 1);
+                        p.addTokens(Token.GOLD, 1);
+                    }
+                    System.out.println("AI reserves from deck: " + formatCard(card));
+                    return true;
+                }
+            } else {
+                int level = Integer.parseInt(parts[1]);
+                int slot = Integer.parseInt(parts[2]);
+                Card card = board.takeCard(level, slot);
+                if (card != null && p.getHand().size() < 3) {
+                    board.refillMarket();
+                    p.reserveCard(card);
+                    if (board.getAvailableTokens().getOrDefault(Token.GOLD, 0) > 0) {
+                        board.removeToken(Token.GOLD, 1);
+                        p.addTokens(Token.GOLD, 1);
+                    }
+                    System.out.println("AI reserves: " + formatCard(card));
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void returnExcessTokensAI(Player p, Board board) {
+        int total = p.getTotalTokenCount();
+        if (total <= MAX_TOKENS) return;
+        int toReturn = total - MAX_TOKENS;
+        List<Token> tokens = SplendorAI.chooseTokensToReturn(p, board, toReturn);
+        for (Token t : tokens) {
+            p.removeTokens(t, 1);
+            board.addToken(t, 1);
+        }
+        System.out.println("AI returns " + toReturn + " token(s).");
     }
 
     private static void returnExcessTokens(Player p, Board board, Scanner sc) {
