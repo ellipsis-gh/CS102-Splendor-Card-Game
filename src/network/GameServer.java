@@ -10,9 +10,13 @@ import model.Player;
 import model.Token;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 
 public class GameServer {
@@ -22,9 +26,32 @@ public class GameServer {
         this.port = port;
     }
 
+    private void printLocalAddresses() {
+        System.out.println("Connect using one of these IPs:");
+        try {
+            System.out.println("  localhost / 127.0.0.1 (this machine only)");
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            for (NetworkInterface ni : Collections.list(interfaces)) {
+                if (ni.isLoopback() || !ni.isUp()) continue;
+                for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
+                    if (addr.isLoopbackAddress()) continue;
+                    String host = addr.getHostAddress();
+                    if (host.contains("%")) host = host.split("%")[0];
+                    if (addr.getHostAddress().indexOf(':') < 0) {
+                        System.out.println("  " + host + " (port " + port + ")");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("  (could not enumerate: " + e.getMessage() + ")");
+        }
+    }
+
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started on port " + port);
+            printLocalAddresses();
+            System.out.println("Clients: run run_client.bat and enter one of the IPs above");
             System.out.println("Waiting for Player 1...");
 
             Socket socket1 = serverSocket.accept();

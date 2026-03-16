@@ -11,8 +11,14 @@ public class ClientMain {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
 
-        System.out.print("Enter server IP: ");
-        String host = sc.nextLine().trim();
+        String host;
+        if (args.length > 0 && !args[0].isBlank()) {
+            host = args[0].trim();
+            System.out.println("Connecting to " + host + "...");
+        } else {
+            System.out.print("Enter server IP: ");
+            host = sc.nextLine().trim();
+        }
 
         int port = 5000;
 
