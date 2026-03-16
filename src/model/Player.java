@@ -1,4 +1,4 @@
-package com.splendor.model;
+package model;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -82,21 +82,70 @@ public class Player {
         nobles.add(noble);
     }
 
-    public boolean canGetNoble() {
-        Map<Token, Integer> playerBonus = player.getBonuses();
+    public boolean canGetNoble(Noble noble) {
+        Map<Token, Integer> playerBonus = getBonuses();
+        Map<Token, Integer> cost = noble.getCost();
 
         for (Map.Entry<Token, Integer> entry : cost.entrySet()) {
             Token token = entry.getKey();
             int required = entry.getValue();
-
             if (playerBonus.getOrDefault(token, 0) < required) {
                 return false;
             }
         }
-
         return true;
     }
-    
+
+    /**
+     * Check if player can afford a card (bonuses reduce cost, gold is wild).
+     */
+    public boolean canAffordCard(Card card) {
+        Map<Token, Integer> cost = card.getCost();
+        Map<Token, Integer> bonuses = getBonuses();
+
+        int totalNeeded = 0;
+        int totalFromRegular = 0;
+
+        for (Token t : new Token[]{Token.BLACK, Token.BLUE, Token.GREEN, Token.RED, Token.WHITE}) {
+            int cardCost = cost.getOrDefault(t, 0);
+            int bonus = bonuses.getOrDefault(t, 0);
+            int effectiveCost = cardCost - bonus;
+            if (effectiveCost > 0) {
+                totalNeeded += effectiveCost;
+                int payWithColor = Math.min(getTokenCount(t), effectiveCost);
+                totalFromRegular += payWithColor;
+            }
+        }
+
+        int goldNeeded = totalNeeded - totalFromRegular;
+        return goldNeeded <= getTokenCount(Token.GOLD);
+    }
+
+    /**
+     * Pay for a card: deduct tokens. Uses regular tokens first, then gold.
+     */
+    public void payForCard(Card card, Board board) {
+        Map<Token, Integer> cost = card.getCost();
+        Map<Token, Integer> bonuses = getBonuses();
+
+        for (Token t : new Token[]{Token.BLACK, Token.BLUE, Token.GREEN, Token.RED, Token.WHITE}) {
+            int cardCost = cost.getOrDefault(t, 0);
+            int bonus = bonuses.getOrDefault(t, 0);
+            int effectiveCost = cardCost - bonus;
+            if (effectiveCost > 0) {
+                int toPay = Math.min(getTokenCount(t), effectiveCost);
+                if (toPay > 0) {
+                    removeTokens(t, toPay);
+                    board.addToken(t, toPay);
+                }
+                int goldNeeded = effectiveCost - toPay;
+                if (goldNeeded > 0) {
+                    removeTokens(Token.GOLD, goldNeeded);
+                    board.addToken(Token.GOLD, goldNeeded);
+                }
+            }
+        }
+    }
 
     public int getScore() {
         int cardPoints = purchasedCards.stream().mapToInt(Card::getPrestigePoints).sum();

@@ -1,8 +1,11 @@
-import java.util.*;
+package model;
 
-public class NobleDeck {
-    public static List<Noble> NobleDataList(){
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
+public class NobleData {
+    public static List<Noble> nobleDataList() {
         List<Noble> nobleDeck = new ArrayList<>();
 
         nobleDeck.add(new Noble(3, Map.of(Token.RED, 4, Token.GREEN, 4)));
@@ -17,6 +20,5 @@ public class NobleDeck {
         nobleDeck.add(new Noble(3, Map.of(Token.BLACK, 3, Token.RED, 3, Token.GREEN, 3)));
 
         return nobleDeck;
-
     }
 }

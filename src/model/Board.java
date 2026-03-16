@@ -1,4 +1,4 @@
-package com.splendor.model;
+package model;
 
 import java.util.HashMap;
 import java.util.List;
@@ -105,4 +105,36 @@ public class Board {
     public boolean canTakeTwo(Token t) {
         return availableTokens.getOrDefault(t, 0) >= 4;
     }
+
+    /**
+     * Check if we can take 3 different tokens (all different, not gold, all available).
+     */
+    public boolean canTakeThreeDifferent(Token t1, Token t2, Token t3) {
+        if (t1 == Token.GOLD || t2 == Token.GOLD || t3 == Token.GOLD)
+            return false;
+        if (t1 == t2 || t1 == t3 || t2 == t3)
+            return false;
+        if (availableTokens.getOrDefault(t1, 0) < 1) return false;
+        if (availableTokens.getOrDefault(t2, 0) < 1) return false;
+        if (availableTokens.getOrDefault(t3, 0) < 1) return false;
+        return true;
+    }
+
+    /**
+     * Draw a card from the top of a deck (for reserving).
+     */
+    public Card drawFromDeck(int level) {
+        if (level == 1) return deck1.draw();
+        if (level == 2) return deck2.draw();
+        if (level == 3) return deck3.draw();
+        return null;
+    }
+
+    public boolean deckHasCards(int level) {
+        if (level == 1) return !deck1.isEmpty();
+        if (level == 2) return !deck2.isEmpty();
+        if (level == 3) return !deck3.isEmpty();
+        return false;
+    }
 }
+
