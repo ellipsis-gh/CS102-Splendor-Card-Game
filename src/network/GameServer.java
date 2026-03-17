@@ -113,6 +113,8 @@ public class GameServer {
                 currentClient.send("BUY 1-0");
                 currentClient.send("BUYR 0");
                 currentClient.send("RESERVE 1-0");
+                currentClient.send("RESERVEDECK 1");
+                currentClient.send("RETURN red 1   (only when over token limit)");
                 currentClient.send("QUIT");
 
                 otherClient.send("WAITING FOR " + current.getName());
@@ -145,6 +147,8 @@ public class GameServer {
                     }
                 }
 
+                enforceTokenLimit(game, current, currentClient, otherClient);
+
                 if (game.checkAndAwardNoble(current) != null) {
                     currentClient.send("A noble visits you.");
                     otherClient.send(current.getName() + " received a noble.");
@@ -168,6 +172,43 @@ public class GameServer {
             client2.send("Server game error: " + e.getMessage());
             client1.close();
             client2.close();
+        }
+    }
+
+    private void enforceTokenLimit(Game game, Player player, ClientHandler currentClient, ClientHandler otherClient)
+            throws IOException {
+        while (game.mustReturnTokens(player)) {
+            int mustReturn = game.getNumTokensToReturn(player);
+            broadcastState(game, currentClient, otherClient);
+            currentClient.send("TOKEN LIMIT: You have " + player.getTotalTokenCount() + " tokens (max 10).");
+            currentClient.send("Return " + mustReturn + " token(s) with: RETURN <color> <count>");
+            currentClient.send("Example: RETURN red 1");
+            otherClient.send("Waiting: " + player.getName() + " must return " + mustReturn + " token(s).");
+
+            boolean ok = false;
+            while (!ok) {
+                String line = currentClient.readLine();
+                if (line == null) {
+                    otherClient.send(player.getName() + " disconnected. Game over.");
+                    currentClient.close();
+                    otherClient.close();
+                    throw new IOException("Player disconnected");
+                }
+
+                line = line.trim();
+                if (line.equalsIgnoreCase("QUIT")) {
+                    currentClient.send("You quit the game.");
+                    otherClient.send(player.getName() + " quit the game.");
+                    currentClient.close();
+                    otherClient.close();
+                    throw new IOException("Player quit");
+                }
+
+                ok = handleReturnCommand(game, player, line, currentClient);
+                if (!ok) {
+                    currentClient.send("Invalid return. Use: RETURN <color> <count>");
+                }
+            }
         }
     }
 
@@ -293,6 +334,14 @@ public class GameServer {
                     client.send("OK: Reserved visible card.");
                     return true;
 
+                case "RESERVEDECK":
+                    if (parts.length != 2) return false;
+                    int deckLevel = Integer.parseInt(parts[1]);
+                    if (!game.canReserveDeckCard(p, deckLevel)) return false;
+                    game.reserveDeckCard(p, deckLevel);
+                    client.send("OK: Reserved deck card.");
+                    return true;
+
                 default:
                     return false;
             }
@@ -300,6 +349,33 @@ public class GameServer {
             client.send("ERROR: " + e.getMessage());
             return false;
         }
+    }
+
+    private boolean handleReturnCommand(Game game, Player p, String line, ClientHandler client) {
+        String[] parts = line.split("\\s+");
+        if (parts.length != 3) return false;
+        if (!"RETURN".equalsIgnoreCase(parts[0])) return false;
+
+        Token token = parseTokenAllowGold(parts[1]);
+        if (token == null) return false;
+
+        int count;
+        try {
+            count = Integer.parseInt(parts[2]);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        if (count <= 0) return false;
+
+        int have = p.getTokens().getOrDefault(token, 0);
+        if (have < count) return false;
+
+        int mustReturn = game.getNumTokensToReturn(p);
+        if (count > mustReturn) return false;
+
+        game.returnToken(p, token, count);
+        client.send("OK: Returned " + count + " " + token);
+        return true;
     }
 
     private Token parseToken(String s) {
@@ -313,5 +389,11 @@ public class GameServer {
             case "red": return Token.RED;
             default: return null;
         }
+    }
+
+    private Token parseTokenAllowGold(String s) {
+        if (s == null) return null;
+        if ("gold".equalsIgnoreCase(s)) return Token.GOLD;
+        return parseToken(s);
     }
 }
