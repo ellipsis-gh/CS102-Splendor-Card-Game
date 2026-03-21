@@ -7,9 +7,10 @@ public class Bank {
 
     private final Map<Token, Integer> tokens; // token type -> how many left
 
+    // constructor - sets up the bank for however many players are playing
     public Bank(int playerCount) {
-        tokens = new HashMap<>();
-        initializeTokens(playerCount);
+        tokens = new HashMap<>(); // start with an empty map
+        initializeTokens(playerCount); // fill it based on player count
     }
 
     private void initializeTokens(int playerCount) {
