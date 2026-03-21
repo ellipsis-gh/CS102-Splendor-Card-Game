@@ -58,6 +58,6 @@ public class Bank {
     }
 
     public Map<Token, Integer> getAllTokens() {
-        return new EnumMap<>(tokens);
+        return new HashMap<>(tokens);
     }
 }
