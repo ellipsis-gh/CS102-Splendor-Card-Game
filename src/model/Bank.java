@@ -1,14 +1,14 @@
 package model;
 
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 public class Bank {
 
-    private final Map<Token, Integer> tokens;
+    private final Map<Token, Integer> tokens;      // format: (token type, number of tokens)
 
     public Bank(int playerCount) {
-        tokens = new EnumMap<>(Token.class);
+        tokens = new HashMap<>();
         initializeTokens(playerCount);
     }
 
