@@ -7,7 +7,7 @@ public class Bank {
 
     private final Map<Token, Integer> tokens; // token type -> how many left
 
-    // constructor - sets up the bank for however many players are playing
+    //sets up the bank for however many players are playing
     public Bank(int playerCount) {
         tokens = new HashMap<>(); // start with an empty map
         initializeTokens(playerCount); // fill it based on player count
@@ -40,7 +40,7 @@ public class Bank {
         }
     }
 
-    // do we have enough of this token?
+    // checking if we have enough of this token?
     public boolean hasEnough(Token type, int amount) {
         return tokens.get(type) >= amount;
     }
@@ -49,8 +49,9 @@ public class Bank {
     public void take(Token type, int amount) {
         if (!hasEnough(type, amount)) {
             throw new IllegalArgumentException("Not enough tokens in bank");
+        } else {
+            tokens.put(type, tokens.get(type) - amount);
         }
-        tokens.put(type, tokens.get(type) - amount);
     }
 
     // player gives tokens back
