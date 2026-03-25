@@ -45,6 +45,7 @@ public class Main {
         } catch (IOException e) {
             System.err.println("Error: Could not load Splendor Cards.csv");
             System.err.println("Make sure the file is in the same folder as the program.");
+            e.getStackTrace();
             return;
         }
 
@@ -82,6 +83,7 @@ public class Main {
         } catch (IOException e) {
             System.err.println("Error: Could not load Nobles.csv");
             System.err.println("Make sure the file is in the same folder as the program.");
+            e.printStackTrace();
             return;
         }
 
