@@ -1,0 +1,171 @@
+@startuml
+title Splendor Card Game - Class Diagram
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+left to right direction
+
+package "model" {
+  enum Token
+
+  class Card {
+    - level : int
+    - prestigePoints : int
+    - bonus : Token
+    - cost : Map<Token, Integer>
+  }
+
+  class Noble {
+    - prestigePoints : int
+    - cost : Map<Token, Integer>
+  }
+
+  class Deck {
+    - level : int
+    - cards : ArrayList<Card>
+    + shuffle()
+    + draw() : Card
+    + isEmpty() : boolean
+  }
+
+  class Board {
+    - availableTokens : Map<Token, Integer>
+    - nobles : List<Noble>
+    - deck1 : Deck
+    - deck2 : Deck
+    - deck3 : Deck
+    - level1Visible : Card[]
+    - level2Visible : Card[]
+    - level3Visible : Card[]
+    + refillMarket()
+    + getVisibleCards(level : int) : Card[]
+    + drawFromDeck(level : int) : Card
+  }
+
+  class Player {
+    - name : String
+    - isHuman : boolean
+    - tokens : Map<Token, Integer>
+    - hand : List<Card>
+    - purchasedCards : List<Card>
+    - nobles : List<Noble>
+    + canAffordCard(card : Card) : boolean
+    + payForCard(card : Card, board : Board)
+    + buyCard(card : Card)
+    + reserveCard(card : Card)
+    + getScore() : int
+  }
+
+  class Game {
+    - board : Board
+    - players : List<Player>
+    - currentPlayerIndex : int
+    - gameOver : boolean
+    - winner : Player
+    + getCurrentPlayer() : Player
+    + nextTurn()
+    + canTakeThreeDifferentGems(player : Player, t1 : Token, t2 : Token, t3 : Token) : boolean
+    + takeThreeDifferentGems(player : Player, t1 : Token, t2 : Token, t3 : Token)
+    + canBuyVisibleCard(player : Player, level : int, slot : int) : boolean
+    + buyVisibleCard(player : Player, level : int, slot : int)
+    + checkAndAwardNoble(player : Player) : Noble
+  }
+
+  class CardLoader {
+    + loadCards(path : String) : List<Card>
+    + createDefaultNobles() : List<Noble>
+  }
+
+  class ConsoleUI
+  class SplendorAI
+  class Main
+  class Bank
+  class NobleData
+  class deckGetter
+}
+
+package "network" {
+  class ServerMain
+
+  class GameServer {
+    - port : int
+    + start()
+  }
+
+  class ClientHandler {
+    - socket : Socket
+    - in : BufferedReader
+    - out : PrintWriter
+    - playerName : String
+    + readLine() : String
+    + send(message : String)
+    + close()
+  }
+
+  class ClientMain
+
+  class NetworkFormatter {
+    + formatBoard(board : Board) : String
+    + formatPlayer(player : Player) : String
+  }
+}
+
+Board *-- "3" Deck
+Board *-- "0..*" Noble
+Board *-- "12" Card : visible market
+Player *-- "0..*" Card : reserved
+Player *-- "0..*" Card : purchased
+Player *-- "0..*" Noble
+Player ..> Token
+Card ..> Token
+Noble ..> Token
+Board ..> Token
+Game *-- Board
+Game *-- "2..*" Player
+Deck *-- "0..*" Card
+CardLoader ..> Card
+CardLoader ..> Noble
+ConsoleUI ..> Board
+ConsoleUI ..> Player
+SplendorAI ..> Board
+SplendorAI ..> Player
+SplendorAI ..> Card
+Main ..> Game
+Main ..> ConsoleUI
+Main ..> CardLoader
+Bank ..> Token
+NobleData ..> Noble
+deckGetter ..> Card
+
+ServerMain ..> GameServer : starts
+GameServer ..> ClientHandler : manages 2 clients
+GameServer ..> Game : creates / controls
+GameServer ..> CardLoader : loads setup data
+GameServer ..> NetworkFormatter : formats state
+GameServer ..> Board
+GameServer ..> Player
+GameServer ..> Deck
+GameServer ..> Card
+GameServer ..> Noble
+ClientMain ..> "Socket" : connects to server
+ClientMain ..> ClientHandler : communicates with
+NetworkFormatter ..> Board
+NetworkFormatter ..> Player
+NetworkFormatter ..> Card
+NetworkFormatter ..> Noble
+
+note right of GameServer
+  Server-side controller.
+  Accepts 2 TCP clients,
+  runs the turn loop,
+  and sends text updates.
+end note
+
+note right of ClientMain
+  Player-side console app.
+  Connects to the server,
+  prints incoming messages,
+  and sends typed commands.
+end note
+
+@enduml
