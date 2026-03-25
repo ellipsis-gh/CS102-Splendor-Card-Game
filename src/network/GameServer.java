@@ -16,7 +16,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.List;
 
 public class GameServer {
@@ -30,8 +29,8 @@ public class GameServer {
         System.out.println("Connect using one of these IPs:");
         try {
             System.out.println("  localhost / 127.0.0.1 (this machine only)");
-            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            for (NetworkInterface ni : Collections.list(interfaces)) {
+            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface ni : interfaces) {
                 if (ni.isLoopback() || !ni.isUp()) continue;
                 for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
                     if (addr.isLoopbackAddress()) continue;
