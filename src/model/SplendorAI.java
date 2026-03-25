@@ -5,43 +5,35 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Simple algorithmic AI for Splendor.
- * Strategy: Buy when possible, else reserve good cards, else take gems we need.
- */
+// simple greedy AI: buy if possible, reserve a good card, otherwise take gems we need
 public class SplendorAI {
 
     private static final Token[] GEM_COLORS = {Token.GREEN, Token.WHITE, Token.BLUE, Token.BLACK, Token.RED};
 
-    /**
-     * Decide what action the AI should take this turn.
-     * Returns a string: "1:t1:t2:t3" or "2:t" or "3:level:slot" or "3:r:idx" or "4:level:slot" or "4:deck:level"
-     */
+    // decides what action to take — returns a command string like:
+    // "1:t1:t2:t3" (take 3), "2:t" (take 2), "3:level:slot" or "3:r:idx" (buy), "4:level:slot" or "4:deck:level" (reserve)
     public static String chooseAction(Player p, Board board) {
-        // 1. Can we buy an affordable card? Prefer high points, or helps toward noble
+        // 1. buy an affordable card if we can — prefer high points or noble progress
         String buy = tryBuyCard(p, board);
         if (buy != null) return buy;
 
-        // 2. Can we buy from reserved?
+        // 2. check if we can buy from our reserved cards
         String buyReserved = tryBuyReserved(p, board);
         if (buyReserved != null) return buyReserved;
 
-        // 3. Should we reserve a card? (if we have room and a good target)
+        // 3. reserve a card if there's a good target and we have room
         String reserve = tryReserveCard(p, board);
         if (reserve != null) return reserve;
 
-        // 4. Take gems - prefer colors we need for cards we're close to
+        // 4. take gems — prefer colors we need most for cards we're close to buying
         String take = tryTakeGems(p, board);
         if (take != null) return take;
 
-        // Fallback: take 3 different of whatever is available
+        // fallback: just take 3 of whatever is available
         return takeThreeAvailable(board);
     }
 
-    /**
-     * Decide which tokens to return when over 10. Prefer returning colors we need least.
-     * Returns list of tokens to return (caller removes them from player, adds to board).
-     */
+    // decides which tokens to give back when over 10 — returns the least-needed colors first
     public static List<Token> chooseTokensToReturn(Player p, Board board, int count) {
         List<Token> result = new ArrayList<>();
         Map<Token, Integer> needScore = howMuchWeNeedEachColor(p, board);
@@ -65,6 +57,7 @@ public class SplendorAI {
                 result.add(worst);
                 have.put(worst, have.get(worst) - 1);
             } else if (have.getOrDefault(Token.GOLD, 0) > 0) {
+                // only return gold if there's nothing else to give
                 result.add(Token.GOLD);
                 have.put(Token.GOLD, have.get(Token.GOLD) - 1);
             } else break;
@@ -72,6 +65,7 @@ public class SplendorAI {
         return result;
     }
 
+    // scan visible cards and pick the best one we can afford
     private static String tryBuyCard(Player p, Board board) {
         int bestScore = -1;
         int bestLevel = -1;
@@ -98,6 +92,7 @@ public class SplendorAI {
         return null;
     }
 
+    // check if we can buy any card we already have reserved
     private static String tryBuyReserved(Player p, Board board) {
         List<Card> hand = p.getHand();
         for (int i = 0; i < hand.size(); i++) {
@@ -109,8 +104,9 @@ public class SplendorAI {
         return null;
     }
 
+    // look for a card that's close to affordable and worth reserving
     private static String tryReserveCard(Player p, Board board) {
-        if (p.getHand().size() >= 3) return null;
+        if (p.getHand().size() >= 3) return null; // hand full
 
         int bestScore = -1;
         String bestAction = null;
@@ -120,7 +116,7 @@ public class SplendorAI {
             for (int slot = 0; slot < row.length; slot++) {
                 Card c = row[slot];
                 if (c == null) continue;
-                if (p.canAffordCard(c)) continue;
+                if (p.canAffordCard(c)) continue; // no need to reserve what we can already buy
 
                 int tokensNeeded = tokensNeededForCard(p, c);
                 if (tokensNeeded <= 2 && tokensNeeded > 0) {
@@ -134,6 +130,7 @@ public class SplendorAI {
         }
         if (bestAction != null) return bestAction;
 
+        // nothing specific worth reserving — grab a blind card from the highest available deck
         if (bestScore < 0 && p.getHand().size() < 3) {
             for (int level = 1; level <= 3; level++) {
                 if (board.deckHasCards(level)) {
@@ -144,12 +141,14 @@ public class SplendorAI {
         return null;
     }
 
+    // try to take gems smartly — pick the 3 we need most, or take 2 if we need a lot of one color
     private static String tryTakeGems(Player p, Board board) {
         Token[] needed = getTop3NeededColors(p, board);
         if (needed != null && board.canTakeThreeDifferent(needed[0], needed[1], needed[2])) {
             return "1:" + needed[0] + ":" + needed[1] + ":" + needed[2];
         }
 
+        // if we really need a lot of one color and the board has 4+, take 2
         for (Token t : GEM_COLORS) {
             if (board.canTakeTwo(t)) {
                 int need = howMuchWeNeedColor(p, board, t);
@@ -165,6 +164,7 @@ public class SplendorAI {
         return null;
     }
 
+    // last resort: grab 3 of whatever colors are on the board
     private static String takeThreeAvailable(Board board) {
         List<Token> available = new ArrayList<>();
         for (Token t : GEM_COLORS) {
@@ -178,13 +178,15 @@ public class SplendorAI {
         return null;
     }
 
+    // score a card for purchase: prestige points matter most, noble progress and high level are bonuses
     private static int scoreCardForPurchase(Card c, Player p, Board board) {
         int score = c.getPrestigePoints() * 10;
         if (helpsTowardNoble(p, c, board)) score += 5;
-        if (c.getLevel() == 3) score += 2;
+        if (c.getLevel() == 3) score += 2; // slight preference for high-level cards
         return score;
     }
 
+    // does this card's bonus color help us get closer to one of the nobles on the board?
     private static boolean helpsTowardNoble(Player p, Card c, Board board) {
         Token bonus = c.getBonus();
         if (bonus == null) return false;
@@ -196,6 +198,7 @@ public class SplendorAI {
         return false;
     }
 
+    // how many more tokens would we need to afford this card right now?
     private static int tokensNeededForCard(Player p, Card c) {
         Map<Token, Integer> cost = c.getCost();
         Map<Token, Integer> bonuses = p.getBonuses();
@@ -210,6 +213,7 @@ public class SplendorAI {
         return Math.max(0, totalNeeded - totalFromTokens - gold);
     }
 
+    // tally how much of each color we need across all visible cards and our reserved cards
     private static Map<Token, Integer> howMuchWeNeedEachColor(Player p, Board board) {
         Map<Token, Integer> need = new HashMap<>();
         for (Token t : GEM_COLORS) {
@@ -228,6 +232,7 @@ public class SplendorAI {
         return need;
     }
 
+    // add this card's unmet color requirements to the running need totals
     private static void addCardNeed(Map<Token, Integer> need, Player p, Card c) {
         Map<Token, Integer> cost = c.getCost();
         Map<Token, Integer> bonuses = p.getBonuses();
@@ -239,6 +244,7 @@ public class SplendorAI {
         }
     }
 
+    // how many more of this specific color do we need across all our target cards?
     private static int howMuchWeNeedColor(Player p, Board board, Token color) {
         int need = 0;
         for (Card c : p.getHand()) {
@@ -257,6 +263,7 @@ public class SplendorAI {
         return need;
     }
 
+    // find the 3 colors we need most right now — prioritize ones that are actually on the board
     private static Token[] getTop3NeededColors(Player p, Board board) {
         Map<Token, Integer> need = new HashMap<>();
         for (Token t : GEM_COLORS) {
@@ -266,7 +273,7 @@ public class SplendorAI {
             Card[] row = board.getVisibleCards(level);
             for (Card c : row) {
                 if (c == null) continue;
-                if (p.canAffordCard(c)) continue;
+                if (p.canAffordCard(c)) continue; // already affordable, no need to count
                 Map<Token, Integer> cost = c.getCost();
                 Map<Token, Integer> bonuses = p.getBonuses();
                 for (Token t : GEM_COLORS) {
@@ -288,6 +295,7 @@ public class SplendorAI {
             }
         }
 
+        // pick the top 3 by need score, skipping colors not on the board
         List<Token> top = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
             Token best = null;
