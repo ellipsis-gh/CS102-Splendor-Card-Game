@@ -7,6 +7,14 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Scanner;
 
+
+// it asks for the server IP and port
+// it connects to the game server
+// it listens for messages from the server and prints them
+// it reads what the player types
+// it sends those typed commands to the server
+// it stops when the player types QUIT or the connection closes
+
 public class ClientMain {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
