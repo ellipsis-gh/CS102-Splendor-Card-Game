@@ -25,7 +25,7 @@ public class GameServer {
     public GameServer(int port) {
         this.port = port;
     }
-
+    //printlocal addressess is to know the server ip for the client to connect to the server
     private void printLocalAddresses() {
         System.out.println("Connect using one of these IPs:");
         try {
@@ -46,7 +46,10 @@ public class GameServer {
             System.out.println("  (could not enumerate: " + e.getMessage() + ")");
         }
     }
-
+    // the main strtup method for the server
+    // it runs the ServerSocketand client for player1
+    // it waits for player 2 to connect
+    // call runGame(client1, client2) once both players are ready.
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started on port " + port);
@@ -89,6 +92,8 @@ public class GameServer {
             System.out.println("Server error: " + e.getMessage());
         }
     }
+    //it creates the actual Game object by calling createGame()
+    //it ends the latest board/player state to both clients using broadcastState()
 
     private void runGame(ClientHandler client1, ClientHandler client2) {
         try {
@@ -174,7 +179,7 @@ public class GameServer {
             client2.close();
         }
     }
-
+    // it makes sure the current player is not holding more than 10 tokens
     private void enforceTokenLimit(Game game, Player player, ClientHandler currentClient, ClientHandler otherClient)
             throws IOException {
         while (game.mustReturnTokens(player)) {
@@ -211,7 +216,7 @@ public class GameServer {
             }
         }
     }
-
+    //it print the current board and players info, then sends the same state to both clients.
     private void broadcastState(Game game, ClientHandler c1, ClientHandler c2) {
         String boardText = NetworkFormatter.formatBoard(game.getBoard());
         String p1Text = NetworkFormatter.formatPlayer(game.getPlayers().get(0));
@@ -225,7 +230,7 @@ public class GameServer {
         c2.send(p1Text);
         c2.send(p2Text);
     }
-
+    //it sets up a Splendor match.
     private Game createGame(String player1Name, String player2Name) throws IOException {
         List<Card> allCards = CardLoader.loadCards("Splendor Cards.csv");
 
@@ -264,7 +269,7 @@ public class GameServer {
 
         return new Game(board, players);
     }
-
+    // it parses and executes the main turn commands entered by the player.
     private boolean handleCommand(Game game, Player p, String command, ClientHandler client) {
         String[] parts = command.split("\\s+");
         if (parts.length == 0) {
@@ -350,7 +355,7 @@ public class GameServer {
             return false;
         }
     }
-
+    // Similar idea to handleCommand(), but only for return command and  used when the player has too many tokens.
     private boolean handleReturnCommand(Game game, Player p, String line, ClientHandler client) {
         String[] parts = line.split("\\s+");
         if (parts.length != 3) return false;
@@ -377,7 +382,7 @@ public class GameServer {
         client.send("OK: Returned " + count + " " + token);
         return true;
     }
-
+    // it Converts a text color like "red" or "blue" into the matching Token enum.
     private Token parseToken(String s) {
         if (s == null) return null;
 
@@ -390,7 +395,7 @@ public class GameServer {
             default: return null;
         }
     }
-
+    //Same idea as parseToken(), but to accepts "gold".
     private Token parseTokenAllowGold(String s) {
         if (s == null) return null;
         if ("gold".equalsIgnoreCase(s)) return Token.GOLD;

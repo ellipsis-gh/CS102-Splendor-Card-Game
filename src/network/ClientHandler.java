@@ -6,6 +6,14 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
+// it stores that player’s Socket
+// it creates a BufferedReader to read messages from the player
+// it creates a PrintWriter to send messages to the player
+// readLine() reads one line from the client
+// send(String message) sends one line to the client
+// close() closes the connection
+// it also stores the player’s name with getPlayerName() and setPlayerName()
+
 public class ClientHandler {
     private final Socket socket;
     private final BufferedReader in;

@@ -1,13 +1,16 @@
 package network;
 
+import java.util.List;
+import java.util.Map;
 import model.Board;
 import model.Card;
 import model.Noble;
 import model.Player;
 import model.Token;
 
-import java.util.List;
-import java.util.Map;
+// it formats the Board into a readable string
+// it formats each Player into a readable string
+// GameServer uses those strings to send the current game state to clients
 
 public class NetworkFormatter {
 
