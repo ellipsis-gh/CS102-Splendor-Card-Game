@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"/c/Program Files/Common Files/Oracle/Java/javapath/java\" -version)",
+      "Bash(javap -p -cp classes splendor.config.GameConfig)"
+    ]
+  }
+}
