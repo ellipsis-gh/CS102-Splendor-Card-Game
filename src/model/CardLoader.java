@@ -8,7 +8,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// handles reading cards from a CSV file and building the default noble pool
 public class CardLoader {
+
+    // converts the color string from the CSV to the matching Token
     private static Token parseColor(String color) {
         switch (color.trim()) {
             case "Black": return Token.BLACK;
@@ -16,18 +19,19 @@ public class CardLoader {
             case "Green": return Token.GREEN;
             case "Red":   return Token.RED;
             case "White": return Token.WHITE;
-            default:      return Token.GREEN;
+            default:      return Token.GREEN; // fallback — shouldn't normally happen
         }
     }
 
+    // reads all cards from a CSV — expected columns: level, color, pv, black, blue, green, red, white
     public static List<Card> loadCards(String path) throws IOException {
         List<Card> cards = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(path))) {
-            String header = br.readLine();
+            String header = br.readLine(); // skip the header row
             String line;
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(",");
-                if (parts.length < 8) continue;
+                if (parts.length < 8) continue; // skip any malformed rows
                 int level = Integer.parseInt(parts[0].trim());
                 Token bonus = parseColor(parts[1]);
                 int pv = Integer.parseInt(parts[2].trim());
@@ -43,6 +47,7 @@ public class CardLoader {
         return cards;
     }
 
+    // hardcoded set of 5 nobles for a standard 2-player game
     public static List<Noble> createDefaultNobles() {
         List<Noble> nobles = new ArrayList<>();
         Map<Token, Integer> cost;
