@@ -3,8 +3,10 @@ package model;
 import java.util.List;
 import java.util.Map;
 
+// handles printing the game state to the console
 public class ConsoleUI {
 
+    // clears the screen then shows the full board and all players
     public void showGameState(Board board, List<Player> players, int currentPlayerIndex) {
         clearScreen();
 
@@ -18,6 +20,7 @@ public class ConsoleUI {
         System.out.println("======================================");
     }
 
+    // prints tokens, nobles, and all 3 levels of face-up cards
     public void showBoard(Board board) {
         System.out.println("----- BOARD -----");
 
@@ -25,10 +28,10 @@ public class ConsoleUI {
 
         System.out.println("Nobles:");
         for (Noble n : board.getNobles()) {
-            System.out.println("  - " + n); 
+            System.out.println("  - " + n);
         }
 
-        // 3) Visible cards (market)
+        // show each level with slot indices so players can reference them when making moves
         for (int level = 1; level <= 3; level++) {
             System.out.println("Level " + level + " cards:");
             Card[] visible = board.getVisibleCards(level);
@@ -43,6 +46,7 @@ public class ConsoleUI {
         }
     }
 
+    // print every player's score, tokens, bonuses, and card counts
     public void showPlayers(List<Player> players) {
         System.out.println("----- PLAYERS -----");
         for (Player p : players) {
@@ -56,15 +60,15 @@ public class ConsoleUI {
         }
     }
 
+    // compact card display — shows points, bonus color, and cost
     private String shortCard(Card c) {
-        // Example: "P1 +BLUE cost{GREEN=2, WHITE=1}"
         return "P" + c.getPrestigePoints()
                 + " +" + c.getBonus()
                 + " cost" + c.getCost();
     }
 
+    // formats a token map in a consistent order (Token.values order)
     private String formatTokenMap(Map<Token, Integer> map) {
-        // Prints in a stable order (Token.values order)
         StringBuilder sb = new StringBuilder("{ ");
         for (Token t : Token.values()) {
             int v = map.getOrDefault(t, 0);
@@ -74,8 +78,8 @@ public class ConsoleUI {
         return sb.toString();
     }
 
+    // cheap cross-platform screen clear — just prints a bunch of blank lines
     private void clearScreen() {
-        // simple cross-platform-ish way
         System.out.print("\n\n\n\n\n\n\n\n\n\n");
     }
 }
