@@ -1,7 +1,9 @@
 package model;
 
+import config.GameConfig;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -13,8 +15,14 @@ import java.util.Scanner;
  */
 public class Main {
 
-    private static final int WIN_SCORE = 15;
-    // private static final int MAX_TOKENS = 10;
+    //retrieving points from config.properties
+    private static final int WIN_SCORE = GameConfig.getWinningPoints();
+
+    //retrieving cards file path from config.properties
+    private static final String CARDS_FILEPATH = GameConfig.getCardFilePath();
+
+    //retrieving nobles file path from config.properties
+    private static final String NOBLES_FILEPATH = GameConfig.getNobleFilePath();
 
     public static void main(String[] args) {
         System.out.println();
@@ -23,7 +31,7 @@ public class Main {
         System.out.println("    Collect gems. Buy cards. Win!");
         printLine("=", 50);
         System.out.println();
-        System.out.println("  Goal: First to 15 points wins!");
+        System.out.printf("  Goal: First to %d points wins!", WIN_SCORE);
         System.out.println("  - Take gems (3 different OR 2 same)");
         System.out.println("  - Buy cards with gems (bonuses = discounts)");
         System.out.println("  - Reserve cards, get nobles for bonus points");
@@ -33,7 +41,7 @@ public class Main {
         // load cards from CSV
         List<Card> allCards;
         try {
-            allCards = CardLoader.loadCards("Splendor Cards.csv");
+            allCards = CardLoader.loadCards(CARDS_FILEPATH);
         } catch (IOException e) {
             System.err.println("Error: Could not load Splendor Cards.csv");
             System.err.println("Make sure the file is in the same folder as the program.");
@@ -44,10 +52,17 @@ public class Main {
         List<Card> level1 = new ArrayList<>();
         List<Card> level2 = new ArrayList<>();
         List<Card> level3 = new ArrayList<>();
+
+        //edited syntaxing
         for (Card c : allCards) {
-            if (c.getLevel() == 1) level1.add(c);
-            else if (c.getLevel() == 2) level2.add(c);
-            else level3.add(c);
+
+            if (c.getLevel() == 1){
+                level1.add(c);
+            } else if (c.getLevel() == 2) {
+                level2.add(c);
+            } else {
+                level3.add(c);
+            }
         }
 
         // create and shuffle each deck
@@ -59,11 +74,27 @@ public class Main {
         d3.shuffle();
 
         // setup board with 3 nobles for a 2-player game
-        List<Noble> allNobles = CardLoader.createDefaultNobles();
+        List<Noble> allNobles = new ArrayList<Noble>();
+
+        //load nobles from CSV
+        try {
+            allNobles = CardLoader.loadNobles(NOBLES_FILEPATH);
+        } catch (IOException e) {
+            System.err.println("Error: Could not load Nobles.csv");
+            System.err.println("Make sure the file is in the same folder as the program.");
+            return;
+        }
+
+        //pull out 3 nobles for the board
         List<Noble> nobles = new ArrayList<>();
+        //shuffle the existing nobles
+        Collections.shuffle(allNobles);
         for (int i = 0; i < 3; i++) {
             nobles.add(allNobles.get(i));
         }
+
+
+        //setup board
         Board board = new Board(nobles, d1, d2, d3, 2);
         List<Player> players = new ArrayList<>();
         players.add(new Player("Player 1", true));
