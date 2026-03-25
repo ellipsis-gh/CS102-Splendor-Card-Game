@@ -3,14 +3,7 @@ package model;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Game class manages the overall game state, turn logic, and move validation.
- * Handles:
- * - Game initialization with board, decks, nobles, and players
- * - Turn management (current player, next turn)
- * - Move validation (take 3 different gems, take 2 same gems)
- * - Applying moves and updating game state
- */
+// manages the overall game state — turns, move validation, and win conditions
 public class Game {
     private final Board board;
     private final List<Player> players;
@@ -18,12 +11,7 @@ public class Game {
     private boolean gameOver;
     private Player winner;
 
-    /**
-     * Constructor to initialize a new game.
-     *
-     * @param board   The game board with tokens, decks, and nobles
-     * @param players List of players participating in the game
-     */
+    // set up a new game with a board and a list of players
     public Game(Board board, List<Player> players) {
         if (players == null || players.isEmpty()) {
             throw new IllegalArgumentException("Game must have at least one player");
@@ -35,94 +23,58 @@ public class Game {
         this.winner = null;
     }
 
-    /**
-     * Gets the current player whose turn it is.
-     *
-     * @return The current player
-     */
+    // whose turn is it right now?
     public Player getCurrentPlayer() {
         return players.get(currentPlayerIndex);
     }
 
-    /**
-     * Gets all players in the game.
-     *
-     * @return List of all players
-     */
+    // returns a copy so the caller can't mess with the internal list
     public List<Player> getPlayers() {
         return new ArrayList<>(players);
     }
 
-    /**
-     * Gets the game board.
-     *
-     * @return The game board
-     */
     public Board getBoard() {
         return board;
     }
 
-    /**
-     * Checks if the game is over.
-     *
-     * @return true if game is over, false otherwise
-     */
     public boolean isGameOver() {
         return gameOver;
     }
 
-    /**
-     * Gets the winner of the game (null if game is not over or tied).
-     *
-     * @return The winning player, or null if no winner yet
-     */
+    // null if the game hasn't ended yet
     public Player getWinner() {
         return winner;
     }
 
-    /**
-     * Validates if a player can take 3 different gem tokens.
-     * Rules:
-     * - Must take exactly 3 different tokens (non-gold)
-     * - All tokens must be available on the board
-     * - Player must not exceed 10 tokens total after taking
-     * - Cannot take gold tokens in this action
-     *
-     * @param player The player attempting the move
-     * @param token1 First token type
-     * @param token2 Second token type
-     * @param token3 Third token type
-     * @return true if the move is valid, false otherwise
-     */
+    // can this player take 3 different non-gold gems?
+    // needs: all 3 different, all available on board, no gold, player stays under 10 tokens
     public boolean canTakeThreeDifferentGems(Player player, Token token1, Token token2, Token token3) {
-        // Check if it's the player's turn
         if (!player.equals(getCurrentPlayer())) {
             return false;
         }
 
-        // Check if game is over
         if (gameOver) {
             return false;
         }
 
-        // All tokens must be different
+        // all three must be different colors
         if (token1 == token2 || token1 == token3 || token2 == token3) {
             return false;
         }
 
-        // Cannot take gold tokens
+        // can't take gold this way
         if (token1 == Token.GOLD || token2 == Token.GOLD || token3 == Token.GOLD) {
             return false;
         }
 
-        // Check if tokens are available on board
+        // all must be available on the board
         if (board.getAvailableTokens().getOrDefault(token1, 0) < 1 ||
             board.getAvailableTokens().getOrDefault(token2, 0) < 1 ||
             board.getAvailableTokens().getOrDefault(token3, 0) < 1) {
             return false;
         }
 
-        // Check if player would exceed 10 tokens total
+        // player can't go over 10 tokens total
         int currentTotal = player.getTotalTokenCount();
         if (currentTotal + 3 > 10) {
             return false;
@@ -131,40 +83,26 @@ public class Game {
         return true;
     }
 
-    /**
-     * Validates if a player can take 2 of the same gem token.
-     * Rules:
-     * - Must take exactly 2 of the same token (non-gold)
-     * - At least 4 of that token must be available on the board
-     * - Player must not exceed 10 tokens total after taking
-     * - Cannot take gold tokens in this action
-     *
-     * @param player The player attempting the move
-     * @param token  The token type to take 2 of
-     * @return true if the move is valid, false otherwise
-     */
+    // can this player take 2 of the same gem?
+    // needs: not gold, at least 4 of that color on board, player stays under 10
     public boolean canTakeTwoSameGems(Player player, Token token) {
-        // Check if it's the player's turn
         if (!player.equals(getCurrentPlayer())) {
             return false;
         }
 
-        // Check if game is over
         if (gameOver) {
             return false;
         }
 
-        // Cannot take gold tokens
         if (token == Token.GOLD) {
             return false;
         }
 
-        // Check if at least 4 tokens are available (required for taking 2)
+        // board rule: need 4+ of that color to allow taking 2
         if (!board.canTakeTwo(token)) {
             return false;
         }
 
-        // Check if player would exceed 10 tokens total
         int currentTotal = player.getTotalTokenCount();
         if (currentTotal + 2 > 10) {
             return false;
@@ -173,262 +111,234 @@ public class Game {
         return true;
     }
 
-    /**
-     * Applies the move of taking 3 different gem tokens.
-     * This method assumes the move has been validated.
-     *
-     * @param player The player taking the tokens
-     * @param token1 First token type
-     * @param token2 Second token type
-     * @param token3 Third token type
-     * @throws IllegalArgumentException if the move is invalid
-     */
+    // take 3 different gems — assumes canTakeThreeDifferentGems already returned true
     public void takeThreeDifferentGems(Player player, Token token1, Token token2, Token token3) {
         if (!canTakeThreeDifferentGems(player, token1, token2, token3)) {
             throw new IllegalArgumentException("Invalid move: cannot take 3 different gems");
         }
 
-        // Remove tokens from board
+        // remove from board, give to player
         board.removeToken(token1, 1);
         board.removeToken(token2, 1);
         board.removeToken(token3, 1);
 
-        // Add tokens to player
         player.addTokens(token1, 1);
         player.addTokens(token2, 1);
         player.addTokens(token3, 1);
     }
 
-    /**
-     * Applies the move of taking 2 of the same gem token.
-     * This method assumes the move has been validated.
-     *
-     * @param player The player taking the tokens
-     * @param token  The token type to take 2 of
-     * @throws IllegalArgumentException if the move is invalid
-     */
+    // take 2 of the same gem — assumes canTakeTwoSameGems already returned true
     public void takeTwoSameGems(Player player, Token token) {
         if (!canTakeTwoSameGems(player, token)) {
             throw new IllegalArgumentException("Invalid move: cannot take 2 same gems");
         }
 
-        // Remove tokens from board
         board.removeToken(token, 2);
-
-        // Add tokens to player
         player.addTokens(token, 2);
     }
 
+    // is the card at this level/slot available and can the player afford it?
     public boolean canBuyVisibleCard(Player player, int level, int slot) {
-    if (!player.equals(getCurrentPlayer())) {
-        return false;
+        if (!player.equals(getCurrentPlayer())) {
+            return false;
+        }
+
+        if (gameOver) {
+            return false;
+        }
+
+        if (level < 1 || level > 3 || slot < 0 || slot >= 4) {
+            return false;
+        }
+
+        Card[] row = board.getVisibleCards(level);
+        Card card = row[slot];
+
+        if (card == null) {
+            return false;
+        }
+
+        return player.canAffordCard(card);
     }
 
-    if (gameOver) {
-        return false;
+    // buy a face-up card from the market, then refill the empty slot
+    public void buyVisibleCard(Player player, int level, int slot) {
+        if (!canBuyVisibleCard(player, level, slot)) {
+            throw new IllegalArgumentException("Invalid move: cannot buy visible card");
+        }
+
+        Card card = board.takeCard(level, slot);
+        board.refillMarket();
+
+        player.payForCard(card, board);
+        player.buyCard(card);
     }
 
-    if (level < 1 || level > 3 || slot < 0 || slot >= 4) {
-        return false;
+    // can the player afford one of their reserved cards?
+    public boolean canBuyReservedCard(Player player, int reservedIndex) {
+        if (!player.equals(getCurrentPlayer())) {
+            return false;
+        }
+
+        if (gameOver) {
+            return false;
+        }
+
+        if (reservedIndex < 0 || reservedIndex >= player.getHand().size()) {
+            return false;
+        }
+
+        Card card = player.getHand().get(reservedIndex);
+        return player.canAffordCard(card);
     }
 
-    Card[] row = board.getVisibleCards(level);
-    Card card = row[slot];
+    // buy one of the player's reserved cards
+    public void buyReservedCard(Player player, int reservedIndex) {
+        if (!canBuyReservedCard(player, reservedIndex)) {
+            throw new IllegalArgumentException("Invalid move: cannot buy reserved card");
+        }
 
-    if (card == null) {
-        return false;
+        Card card = player.getHand().get(reservedIndex);
+
+        player.payForCard(card, board);
+        player.buyCard(card);
     }
 
-    return player.canAffordCard(card);
-}
+    // can the player reserve a visible card? needs room in hand and the slot isn't empty
+    public boolean canReserveVisibleCard(Player player, int level, int slot) {
+        if (!player.equals(getCurrentPlayer())) {
+            return false;
+        }
 
-public void buyVisibleCard(Player player, int level, int slot) {
-    if (!canBuyVisibleCard(player, level, slot)) {
-        throw new IllegalArgumentException("Invalid move: cannot buy visible card");
+        if (gameOver) {
+            return false;
+        }
+
+        if (player.getHand().size() >= 3) {
+            return false; // hand is full
+        }
+
+        if (level < 1 || level > 3 || slot < 0 || slot >= 4) {
+            return false;
+        }
+
+        Card[] row = board.getVisibleCards(level);
+        return row[slot] != null;
     }
 
-    Card card = board.takeCard(level, slot);
-    board.refillMarket();
+    // reserve a visible card and hand the player a gold token if one is available
+    public void reserveVisibleCard(Player player, int level, int slot) {
+        if (!canReserveVisibleCard(player, level, slot)) {
+            throw new IllegalArgumentException("Invalid move: cannot reserve visible card");
+        }
 
-    player.payForCard(card, board);
-    player.buyCard(card);
-}
+        Card card = board.takeCard(level, slot);
+        board.refillMarket();
 
-public boolean canBuyReservedCard(Player player, int reservedIndex) {
-    if (!player.equals(getCurrentPlayer())) {
-        return false;
-    }
+        player.reserveCard(card);
 
-    if (gameOver) {
-        return false;
-    }
-
-    if (reservedIndex < 0 || reservedIndex >= player.getHand().size()) {
-        return false;
-    }
-
-    Card card = player.getHand().get(reservedIndex);
-    return player.canAffordCard(card);
-}
-
-public void buyReservedCard(Player player, int reservedIndex) {
-    if (!canBuyReservedCard(player, reservedIndex)) {
-        throw new IllegalArgumentException("Invalid move: cannot buy reserved card");
-    }
-
-    Card card = player.getHand().get(reservedIndex);
-
-    player.payForCard(card, board);
-    player.buyCard(card);
-}
-
-public boolean canReserveVisibleCard(Player player, int level, int slot) {
-    if (!player.equals(getCurrentPlayer())) {
-        return false;
-    }
-
-    if (gameOver) {
-        return false;
-    }
-
-    if (player.getHand().size() >= 3) {
-        return false;
-    }
-
-    if (level < 1 || level > 3 || slot < 0 || slot >= 4) {
-        return false;
-    }
-
-    Card[] row = board.getVisibleCards(level);
-    return row[slot] != null;
-}
-
-public void reserveVisibleCard(Player player, int level, int slot) {
-    if (!canReserveVisibleCard(player, level, slot)) {
-        throw new IllegalArgumentException("Invalid move: cannot reserve visible card");
-    }
-
-    Card card = board.takeCard(level, slot);
-    board.refillMarket();
-
-    player.reserveCard(card);
-
-    if (board.getAvailableTokens().getOrDefault(Token.GOLD, 0) > 0) {
-        player.addTokens(Token.GOLD, 1);
-        board.removeToken(Token.GOLD, 1);
-    }
-}
-
-public boolean canReserveDeckCard(Player player, int level) {
-    if (!player.equals(getCurrentPlayer())) {
-        return false;
-    }
-
-    if (gameOver) {
-        return false;
-    }
-
-    if (player.getHand().size() >= 3) {
-        return false;
-    }
-
-    if (level < 1 || level > 3) {
-        return false;
-    }
-
-    return board.deckHasCards(level);
-}
-
-public void reserveDeckCard(Player player, int level) {
-    if (!canReserveDeckCard(player, level)) {
-        throw new IllegalArgumentException("Invalid move: cannot reserve deck card");
-    }
-
-    Card card = board.drawFromDeck(level);
-    player.reserveCard(card);
-
-    if (board.getAvailableTokens().getOrDefault(Token.GOLD, 0) > 0) {
-        player.addTokens(Token.GOLD, 1);
-        board.removeToken(Token.GOLD, 1);
-    }
-}
-
-public Noble checkAndAwardNoble(Player player) {
-    for (Noble noble : new ArrayList<>(board.getNobles())) {
-        if (player.canGetNoble(noble)) {
-            player.receiveNoble(noble);
-            board.removeNoble(noble);
-            return noble;
+        if (board.getAvailableTokens().getOrDefault(Token.GOLD, 0) > 0) {
+            player.addTokens(Token.GOLD, 1);
+            board.removeToken(Token.GOLD, 1);
         }
     }
-    return null;
-}
 
+    // can the player blind-reserve from the top of a deck?
+    public boolean canReserveDeckCard(Player player, int level) {
+        if (!player.equals(getCurrentPlayer())) {
+            return false;
+        }
 
-public boolean mustReturnTokens(Player player) {
-    return player.getTotalTokenCount() > 10;
-}
+        if (gameOver) {
+            return false;
+        }
 
-public int getNumTokensToReturn(Player player) {
-    return Math.max(0, player.getTotalTokenCount() - 10);
-}
+        if (player.getHand().size() >= 3) {
+            return false;
+        }
 
-public void returnToken(Player player, Token token, int count) {
-    if (count <= 0) {
-        throw new IllegalArgumentException("Return count must be positive");
+        if (level < 1 || level > 3) {
+            return false;
+        }
+
+        return board.deckHasCards(level);
     }
 
-    player.removeTokens(token, count);
-    board.addToken(token, count);
-}
+    // reserve the top card from a deck (face down) and give gold if available
+    public void reserveDeckCard(Player player, int level) {
+        if (!canReserveDeckCard(player, level)) {
+            throw new IllegalArgumentException("Invalid move: cannot reserve deck card");
+        }
 
-public Noble endTurnAndCheckNoble() {
-    Player current = getCurrentPlayer();
-    Noble noble = checkAndAwardNoble(current);
-    nextTurn();
-    return noble;
-}
-    /**
-     * Moves to the next player's turn.
-     * Checks for game end conditions after each turn.
-     */
+        Card card = board.drawFromDeck(level);
+        player.reserveCard(card);
+
+        if (board.getAvailableTokens().getOrDefault(Token.GOLD, 0) > 0) {
+            player.addTokens(Token.GOLD, 1);
+            board.removeToken(Token.GOLD, 1);
+        }
+    }
+
+    // check if any noble wants to visit after a player's turn and award them if so
+    public Noble checkAndAwardNoble(Player player) {
+        for (Noble noble : new ArrayList<>(board.getNobles())) {
+            if (player.canGetNoble(noble)) {
+                player.receiveNoble(noble);
+                board.removeNoble(noble);
+                return noble;
+            }
+        }
+        return null;
+    }
+
+    // does this player need to return tokens? (over the 10-token limit)
+    public boolean mustReturnTokens(Player player) {
+        return player.getTotalTokenCount() > 10;
+    }
+
+    // how many tokens does this player need to give back?
+    public int getNumTokensToReturn(Player player) {
+        return Math.max(0, player.getTotalTokenCount() - 10);
+    }
+
+    // player returns tokens to the board
+    public void returnToken(Player player, Token token, int count) {
+        if (count <= 0) {
+            throw new IllegalArgumentException("Return count must be positive");
+        }
+
+        player.removeTokens(token, count);
+        board.addToken(token, count);
+    }
+
+    // end the current turn: check for a noble visit, then advance to the next player
+    public Noble endTurnAndCheckNoble() {
+        Player current = getCurrentPlayer();
+        Noble noble = checkAndAwardNoble(current);
+        nextTurn();
+        return noble;
+    }
+
+    // advance to the next player — also checks if the game just ended
     public void nextTurn() {
-        // Check for game end condition
         checkGameEnd();
 
         if (!gameOver) {
-            // Move to next player
             currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
         }
     }
 
-    /**
-     * Checks if the game should end.
-     * Game ends when:
-     * - A player reaches 15 or more prestige points
-     * After the round completes, the player with the highest prestige wins.
-     * In case of a tie, the player with fewer purchased cards wins.
-     */
+    // game ends when someone hits 15 points — winner is determined after the round finishes
     private void checkGameEnd() {
-        // Check if any player has reached 15+ prestige points
         for (Player player : players) {
             if (player.getScore() >= 15) {
                 gameOver = true;
-                // Don't set winner yet - need to finish the round
-                return;
+                return; // don't set winner yet — need to finish the round first
             }
         }
     }
 
-    /**
-     * Determines the winner after the game ends.
-     * Should be called after the round completes when a player reaches 15+ points.
-     * Winner is the player with:
-     * 1. Highest prestige points
-     * 2. If tied, fewer purchased cards
-     *
-     * @return The winning player
-     */
+    // figure out who won — highest score wins, fewer purchased cards breaks ties
     public Player determineWinner() {
         if (!gameOver) {
             return null;
@@ -447,7 +357,7 @@ public Noble endTurnAndCheckNoble() {
                 bestScore = score;
                 fewestCards = cardCount;
             } else if (score == bestScore) {
-                // Tie-breaker: fewer cards wins
+                // tie-breaker: fewer purchased cards wins
                 if (cardCount < fewestCards) {
                     bestPlayer = player;
                     fewestCards = cardCount;
@@ -459,50 +369,29 @@ public Noble endTurnAndCheckNoble() {
         return winner;
     }
 
-    /**
-     * Gets the current player index (0-based).
-     *
-     * @return Current player index
-     */
     public int getCurrentPlayerIndex() {
         return currentPlayerIndex;
     }
 
-    /**
-     * Gets a list of legal moves for the current player.
-     * This is a helper method that can be used by AI or UI to show available moves.
-     * Note: This returns basic move types. Full validation should be done before applying moves.
-     *
-     * @return List of move type descriptions (simplified for now)
-     */
+    // returns a rough list of available move types — used by AI and UI
     public List<String> getLegalMoves() {
         List<String> moves = new ArrayList<>();
         Player current = getCurrentPlayer();
 
-        // Check take 3 different gems
-        // This is simplified - full implementation would check all combinations
         moves.add("TAKE_3_DIFFERENT");
 
-        // Check take 2 same gems for each token type
+        // check which colors can be taken as 2 of the same
         for (Token token : Token.values()) {
             if (token != Token.GOLD && canTakeTwoSameGems(current, token)) {
                 moves.add("TAKE_2_SAME_" + token);
             }
         }
 
-        // Note: Buy card and reserve card moves would be added by other team members
-        // (Tasks F - validate move: buy card, reserve card)
-
         return moves;
     }
 
-    /**
-     * Forces the game to end (useful for testing or manual termination).
-     */
+    // force the game to end — mainly useful for testing
     public void endGame() {
         this.gameOver = true;
     }
-
-    
 }
-

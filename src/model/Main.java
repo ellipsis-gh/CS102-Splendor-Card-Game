@@ -30,7 +30,7 @@ public class Main {
         System.out.println("  - Max 10 tokens - return extras when over");
         System.out.println();
 
-        // Load cards from CSV
+        // load cards from CSV
         List<Card> allCards;
         try {
             allCards = CardLoader.loadCards("Splendor Cards.csv");
@@ -40,7 +40,7 @@ public class Main {
             return;
         }
 
-        // Split cards by level
+        // split the full card list into 3 separate level piles
         List<Card> level1 = new ArrayList<>();
         List<Card> level2 = new ArrayList<>();
         List<Card> level3 = new ArrayList<>();
@@ -50,7 +50,7 @@ public class Main {
             else level3.add(c);
         }
 
-        // Create and shuffle decks
+        // create and shuffle each deck
         Deck d1 = new Deck(1, level1);
         Deck d2 = new Deck(2, level2);
         Deck d3 = new Deck(3, level3);
@@ -58,7 +58,7 @@ public class Main {
         d2.shuffle();
         d3.shuffle();
 
-        // Setup board and players (2 players = 3 nobles)
+        // setup board with 3 nobles for a 2-player game
         List<Noble> allNobles = CardLoader.createDefaultNobles();
         List<Noble> nobles = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
@@ -77,7 +77,7 @@ public class Main {
 
         boolean gameOver = false;
 
-        // Main game loop
+        // main game loop
         while (!gameOver) {
             Player p = game.getCurrentPlayer();
             System.out.println();
@@ -85,13 +85,13 @@ public class Main {
             System.out.println("  " + p.getName() + "'s Turn");
             printLine("-", 50);
 
-            // Show board
+            // show current board and this player's status
             printBoard(game.getBoard());
             System.out.println();
             printPlayerStatus(p);
             System.out.println();
 
-            // Get player action (human or AI)
+            // get the player's action — human input or AI decision
             boolean validAction = false;
             if (p.isHuman()) {
                 while (!validAction) {
@@ -129,35 +129,34 @@ public class Main {
                 sc.nextLine();
             }
 
-            // Return excess tokens if over 10
-if (validAction) {
-    if (p.isHuman()) {
-        returnExcessTokens(game, p, sc);
-    } else {
-        returnExcessTokensAI(game, p);
+            // after a valid action: return excess tokens if needed, check for noble, check win
+            if (validAction) {
+                if (p.isHuman()) {
+                    returnExcessTokens(game, p, sc);
+                } else {
+                    returnExcessTokensAI(game, p);
+                }
+
+                checkNobleVisit(game, p);
+
+                if (p.getScore() >= WIN_SCORE) {
+                    System.out.println();
+                    printLine("*", 50);
+                    System.out.println("  " + p.getName() + " WINS with " + p.getScore() + " points!");
+                    printLine("*", 50);
+                    gameOver = true;
+                } else {
+                    game.nextTurn();
+                }
+            }
+        }
+
+        sc.close();
     }
-
-    checkNobleVisit(game, p);
-
-    if (p.getScore() >= WIN_SCORE) {
-        System.out.println();
-        printLine("*", 50);
-        System.out.println("  " + p.getName() + " WINS with " + p.getScore() + " points!");
-        printLine("*", 50);
-        gameOver = true;
-    } else {
-        game.nextTurn();
-    }
-}
-}   // closes while loop
-
-sc.close();
-}   // closes main method
-        
-    
 
     // ---- Helper methods for printing ----
 
+    // prints a repeated character as a divider line
     private static void printLine(String ch, int len) {
         for (int i = 0; i < len; i++) {
             System.out.print(ch);
@@ -165,6 +164,7 @@ sc.close();
         System.out.println();
     }
 
+    // prints the full board: gem counts, nobles, and all card slots
     private static void printBoard(Board board) {
         System.out.println("+-- GEMS ON BOARD --+");
         System.out.println("  " + formatTokens(board.getAvailableTokens()));
@@ -191,14 +191,17 @@ sc.close();
         }
     }
 
+    // compact card summary: prestige, bonus color, and cost
     private static String formatCard(Card c) {
         return "PV:" + c.getPrestigePoints() + " " + c.getBonus() + "+ " + formatCost(c.getCost());
     }
 
+    // noble display: just the point value and what bonuses are required
     private static String formatNoble(Noble n) {
         return "3 pts - needs " + formatCost(n.getCost());
     }
 
+    // formats a gem cost map, skipping any colors with 0 required
     private static String formatCost(Map<Token, Integer> cost) {
         StringBuilder sb = new StringBuilder("Cost:");
         for (Token t : new Token[]{Token.BLACK, Token.BLUE, Token.GREEN, Token.RED, Token.WHITE}) {
@@ -208,6 +211,7 @@ sc.close();
         return sb.toString();
     }
 
+    // formats a token map as a compact string, only showing colors with at least 1
     private static String formatTokens(Map<Token, Integer> tokens) {
         StringBuilder sb = new StringBuilder();
         for (Token t : Token.values()) {
@@ -218,6 +222,7 @@ sc.close();
         return s.isEmpty() ? "none" : s;
     }
 
+    // print the player's current score, tokens, bonuses, and reserved cards
     private static void printPlayerStatus(Player p) {
         System.out.println("+-- " + p.getName() + " --+");
         System.out.println("  Score: " + p.getScore() + " pts");
@@ -233,302 +238,318 @@ sc.close();
 
     // ---- Action methods ----
 
-private static boolean doTakeThreeGems(Game game, Player p, Scanner sc) {
-    System.out.print("Enter 3 different colors (e.g. green blue red): ");
-    String line = sc.nextLine().trim().toLowerCase();
-    String[] parts = line.split("\\s+");
+    // handle "take 3 different gems" — reads 3 color names from the player
+    private static boolean doTakeThreeGems(Game game, Player p, Scanner sc) {
+        System.out.print("Enter 3 different colors (e.g. green blue red): ");
+        String line = sc.nextLine().trim().toLowerCase();
+        String[] parts = line.split("\\s+");
 
-    if (parts.length != 3) {
-        System.out.println("You must enter exactly 3 colors.");
-        return false;
-    }
-
-    Token t1 = parseToken(parts[0]);
-    Token t2 = parseToken(parts[1]);
-    Token t3 = parseToken(parts[2]);
-
-    if (t1 == null || t2 == null || t3 == null) {
-        System.out.println("Invalid color. Use: green, white, blue, black, red");
-        return false;
-    }
-
-    if (!game.canTakeThreeDifferentGems(p, t1, t2, t3)) {
-        System.out.println("Invalid move: must be 3 different non-gold colors, available on board, and within token limit.");
-        return false;
-    }
-
-    game.takeThreeDifferentGems(p, t1, t2, t3);
-    System.out.println("Took 1 " + t1 + ", 1 " + t2 + ", 1 " + t3);
-    return true;
-}
-
-private static boolean doTakeTwoSameGems(Game game, Player p, Scanner sc) {
-    System.out.print("Enter color (need 4+ on board): ");
-    String line = sc.nextLine().trim().toLowerCase();
-    Token t = parseToken(line);
-
-    if (t == null || t == Token.GOLD) {
-        System.out.println("Invalid color. Use: green, white, blue, black, red");
-        return false;
-    }
-
-    if (!game.canTakeTwoSameGems(p, t)) {
-        System.out.println("Invalid move: need at least 4 of that color on board and must stay within token limit.");
-        return false;
-    }
-
-    game.takeTwoSameGems(p, t);
-    System.out.println("Took 2 " + t);
-    return true;
-}
-
-private static boolean doBuyCard(Game game, Player p, Scanner sc) {
-    System.out.print("Enter card (e.g. 1-0 for level 1 slot 0, or r-0 for reserved): ");
-    String line = sc.nextLine().trim().toLowerCase();
-
-    try {
-        if (line.startsWith("r")) {
-            String num = line.replace("r", "").replace("-", "").trim();
-            int reservedIndex = Integer.parseInt(num);
-
-            if (!game.canBuyReservedCard(p, reservedIndex)) {
-                System.out.println("You cannot buy that reserved card.");
-                return false;
-            }
-
-            Card card = p.getHand().get(reservedIndex);
-            game.buyReservedCard(p, reservedIndex);
-            System.out.println("Purchased reserved card: " + formatCard(card) +
-                    " (+" + card.getPrestigePoints() + " pts)");
-            return true;
-
-        } else {
-            String[] parts = line.split("-");
-            if (parts.length != 2) {
-                System.out.println("Invalid format. Use level-slot (e.g. 1-0, 2-2)");
-                return false;
-            }
-
-            int level = Integer.parseInt(parts[0].trim());
-            int slot = Integer.parseInt(parts[1].trim());
-
-            if (!game.canBuyVisibleCard(p, level, slot)) {
-                System.out.println("You cannot buy that visible card.");
-                return false;
-            }
-
-            Card card = game.getBoard().getVisibleCards(level)[slot];
-            game.buyVisibleCard(p, level, slot);
-            System.out.println("Purchased: " + formatCard(card) +
-                    " (+" + card.getPrestigePoints() + " pts)");
-            return true;
+        if (parts.length != 3) {
+            System.out.println("You must enter exactly 3 colors.");
+            return false;
         }
 
-    } catch (NumberFormatException e) {
-        System.out.println("Invalid numbers.");
-        return false;
-    } catch (IllegalArgumentException e) {
-        System.out.println(e.getMessage());
-        return false;
-    }
-}
+        Token t1 = parseToken(parts[0]);
+        Token t2 = parseToken(parts[1]);
+        Token t3 = parseToken(parts[2]);
 
-private static boolean doReserveCard(Game game, Player p, Scanner sc) {
-    if (p.getHand().size() >= 3) {
-        System.out.println("You already have 3 reserved cards. Buy one first.");
-        return false;
-    }
-
-    System.out.print("Enter card (e.g. 1-0) or 'deck 1', 'deck 2', 'deck 3' for top of deck: ");
-    String line = sc.nextLine().trim().toLowerCase();
-
-    try {
-        if (line.startsWith("deck")) {
-            String[] parts = line.split("\\s+");
-            if (parts.length != 2) {
-                System.out.println("Use: deck 1, deck 2, or deck 3");
-                return false;
-            }
-
-            int level = Integer.parseInt(parts[1]);
-
-            if (!game.canReserveDeckCard(p, level)) {
-                System.out.println("Cannot reserve from that deck.");
-                return false;
-            }
-
-            game.reserveDeckCard(p, level);
-            System.out.println("Reserved top card from deck " + level + ".");
-            return true;
-
-        } else {
-            String[] parts = line.split("-");
-            if (parts.length != 2) {
-                System.out.println("Use level-slot (e.g. 1-0) or deck 1");
-                return false;
-            }
-
-            int level = Integer.parseInt(parts[0].trim());
-            int slot = Integer.parseInt(parts[1].trim());
-
-            if (!game.canReserveVisibleCard(p, level, slot)) {
-                System.out.println("Cannot reserve that visible card.");
-                return false;
-            }
-
-            Card card = game.getBoard().getVisibleCards(level)[slot];
-            game.reserveVisibleCard(p, level, slot);
-            System.out.println("Reserved: " + formatCard(card));
-            return true;
+        if (t1 == null || t2 == null || t3 == null) {
+            System.out.println("Invalid color. Use: green, white, blue, black, red");
+            return false;
         }
 
-    } catch (NumberFormatException e) {
-        System.out.println("Invalid numbers.");
-        return false;
-    } catch (IllegalArgumentException e) {
-        System.out.println(e.getMessage());
-        return false;
-    }
-}
+        if (!game.canTakeThreeDifferentGems(p, t1, t2, t3)) {
+            System.out.println("Invalid move: must be 3 different non-gold colors, available on board, and within token limit.");
+            return false;
+        }
 
-private static boolean doAITurn(Game game, Player p) {
-    Board board = game.getBoard();
-    String action = SplendorAI.chooseAction(p, board);
-
-    if (action == null) {
-        System.out.println("AI could not decide. Skipping turn.");
+        game.takeThreeDifferentGems(p, t1, t2, t3);
+        System.out.println("Took 1 " + t1 + ", 1 " + t2 + ", 1 " + t3);
         return true;
     }
 
-    String[] parts = action.split(":");
-    if (parts.length < 2) return false;
+    // handle "take 2 same gems" — reads one color name
+    private static boolean doTakeTwoSameGems(Game game, Player p, Scanner sc) {
+        System.out.print("Enter color (need 4+ on board): ");
+        String line = sc.nextLine().trim().toLowerCase();
+        Token t = parseToken(line);
 
-    try {
-        if (parts[0].equals("1") && parts.length >= 4) {
-            Token t1 = Token.valueOf(parts[1]);
-            Token t2 = Token.valueOf(parts[2]);
-            Token t3 = Token.valueOf(parts[3]);
-
-            if (game.canTakeThreeDifferentGems(p, t1, t2, t3)) {
-                game.takeThreeDifferentGems(p, t1, t2, t3);
-                System.out.println("AI takes 1 " + t1 + ", 1 " + t2 + ", 1 " + t3);
-                return true;
-            }
-
-        } else if (parts[0].equals("2") && parts.length >= 2) {
-            Token t = Token.valueOf(parts[1]);
-
-            if (game.canTakeTwoSameGems(p, t)) {
-                game.takeTwoSameGems(p, t);
-                System.out.println("AI takes 2 " + t);
-                return true;
-            }
-
-        } else if (parts[0].equals("3") && parts.length >= 2) {
-            if (parts[1].equals("r") && parts.length >= 3) {
-                int idx = Integer.parseInt(parts[2]);
-
-                if (game.canBuyReservedCard(p, idx)) {
-                    Card card = p.getHand().get(idx);
-                    game.buyReservedCard(p, idx);
-                    System.out.println("AI buys reserved: " + formatCard(card));
-                    return true;
-                }
-
-            } else {
-                int level = Integer.parseInt(parts[1]);
-                int slot = Integer.parseInt(parts[2]);
-
-                if (game.canBuyVisibleCard(p, level, slot)) {
-                    Card card = board.getVisibleCards(level)[slot];
-                    game.buyVisibleCard(p, level, slot);
-                    System.out.println("AI buys: " + formatCard(card));
-                    return true;
-                }
-            }
-
-        } else if (parts[0].equals("4") && parts.length >= 3) {
-            if (parts[1].equals("deck")) {
-                int level = Integer.parseInt(parts[2]);
-
-                if (game.canReserveDeckCard(p, level)) {
-                    game.reserveDeckCard(p, level);
-                    System.out.println("AI reserves from deck " + level);
-                    return true;
-                }
-
-            } else {
-                int level = Integer.parseInt(parts[1]);
-                int slot = Integer.parseInt(parts[2]);
-
-                if (game.canReserveVisibleCard(p, level, slot)) {
-                    Card card = board.getVisibleCards(level)[slot];
-                    game.reserveVisibleCard(p, level, slot);
-                    System.out.println("AI reserves: " + formatCard(card));
-                    return true;
-                }
-            }
+        if (t == null || t == Token.GOLD) {
+            System.out.println("Invalid color. Use: green, white, blue, black, red");
+            return false;
         }
-    } catch (Exception e) {
-        System.out.println("AI move failed: " + e.getMessage());
+
+        if (!game.canTakeTwoSameGems(p, t)) {
+            System.out.println("Invalid move: need at least 4 of that color on board and must stay within token limit.");
+            return false;
+        }
+
+        game.takeTwoSameGems(p, t);
+        System.out.println("Took 2 " + t);
+        return true;
     }
 
-    return false;
-}
-
-
-private static void returnExcessTokensAI(Game game, Player p) {
-    if (!game.mustReturnTokens(p)) {
-        return;
-    }
-
-    int toReturn = game.getNumTokensToReturn(p);
-    List<Token> tokens = SplendorAI.chooseTokensToReturn(p, game.getBoard(), toReturn);
-
-    for (Token t : tokens) {
-        game.returnToken(p, t, 1);
-    }
-
-    System.out.println("AI returns " + toReturn + " token(s).");
-}
-
-private static void returnExcessTokens(Game game, Player p, Scanner sc) {
-    if (!game.mustReturnTokens(p)) {
-        return;
-    }
-
-    int toReturn = game.getNumTokensToReturn(p);
-    System.out.println("You have " + p.getTotalTokenCount() +
-            " tokens. Max is 10. Return " + toReturn + ".");
-
-    int returned = 0;
-    while (returned < toReturn) {
-        System.out.print("Color to return (green/white/blue/black/red/gold): ");
+    // handle "buy a card" — accepts either "level-slot" (e.g. 1-0) or "r-0" for reserved
+    private static boolean doBuyCard(Game game, Player p, Scanner sc) {
+        System.out.print("Enter card (e.g. 1-0 for level 1 slot 0, or r-0 for reserved): ");
         String line = sc.nextLine().trim().toLowerCase();
 
-        Token t = parseToken(line);
-        if (t == null && line.equals("gold")) {
-            t = Token.GOLD;
+        try {
+            if (line.startsWith("r")) {
+                // buying from reserved hand
+                String num = line.replace("r", "").replace("-", "").trim();
+                int reservedIndex = Integer.parseInt(num);
+
+                if (!game.canBuyReservedCard(p, reservedIndex)) {
+                    System.out.println("You cannot buy that reserved card.");
+                    return false;
+                }
+
+                Card card = p.getHand().get(reservedIndex);
+                game.buyReservedCard(p, reservedIndex);
+                System.out.println("Purchased reserved card: " + formatCard(card) +
+                        " (+" + card.getPrestigePoints() + " pts)");
+                return true;
+
+            } else {
+                // buying from the visible market
+                String[] parts = line.split("-");
+                if (parts.length != 2) {
+                    System.out.println("Invalid format. Use level-slot (e.g. 1-0, 2-2)");
+                    return false;
+                }
+
+                int level = Integer.parseInt(parts[0].trim());
+                int slot = Integer.parseInt(parts[1].trim());
+
+                if (!game.canBuyVisibleCard(p, level, slot)) {
+                    System.out.println("You cannot buy that visible card.");
+                    return false;
+                }
+
+                Card card = game.getBoard().getVisibleCards(level)[slot];
+                game.buyVisibleCard(p, level, slot);
+                System.out.println("Purchased: " + formatCard(card) +
+                        " (+" + card.getPrestigePoints() + " pts)");
+                return true;
+            }
+
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid numbers.");
+            return false;
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+            return false;
+        }
+    }
+
+    // handle "reserve a card" — accepts "level-slot" for visible or "deck N" for blind
+    private static boolean doReserveCard(Game game, Player p, Scanner sc) {
+        if (p.getHand().size() >= 3) {
+            System.out.println("You already have 3 reserved cards. Buy one first.");
+            return false;
         }
 
-        if (t != null && p.getTokenCount(t) > 0) {
+        System.out.print("Enter card (e.g. 1-0) or 'deck 1', 'deck 2', 'deck 3' for top of deck: ");
+        String line = sc.nextLine().trim().toLowerCase();
+
+        try {
+            if (line.startsWith("deck")) {
+                // blind reserve from a deck
+                String[] parts = line.split("\\s+");
+                if (parts.length != 2) {
+                    System.out.println("Use: deck 1, deck 2, or deck 3");
+                    return false;
+                }
+
+                int level = Integer.parseInt(parts[1]);
+
+                if (!game.canReserveDeckCard(p, level)) {
+                    System.out.println("Cannot reserve from that deck.");
+                    return false;
+                }
+
+                game.reserveDeckCard(p, level);
+                System.out.println("Reserved top card from deck " + level + ".");
+                return true;
+
+            } else {
+                // reserve a specific visible card
+                String[] parts = line.split("-");
+                if (parts.length != 2) {
+                    System.out.println("Use level-slot (e.g. 1-0) or deck 1");
+                    return false;
+                }
+
+                int level = Integer.parseInt(parts[0].trim());
+                int slot = Integer.parseInt(parts[1].trim());
+
+                if (!game.canReserveVisibleCard(p, level, slot)) {
+                    System.out.println("Cannot reserve that visible card.");
+                    return false;
+                }
+
+                Card card = game.getBoard().getVisibleCards(level)[slot];
+                game.reserveVisibleCard(p, level, slot);
+                System.out.println("Reserved: " + formatCard(card));
+                return true;
+            }
+
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid numbers.");
+            return false;
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+            return false;
+        }
+    }
+
+    // let the AI decide and execute its turn, then print what it did
+    private static boolean doAITurn(Game game, Player p) {
+        Board board = game.getBoard();
+        String action = SplendorAI.chooseAction(p, board);
+
+        if (action == null) {
+            System.out.println("AI could not decide. Skipping turn.");
+            return true;
+        }
+
+        String[] parts = action.split(":");
+        if (parts.length < 2) return false;
+
+        try {
+            if (parts[0].equals("1") && parts.length >= 4) {
+                // take 3 different gems
+                Token t1 = Token.valueOf(parts[1]);
+                Token t2 = Token.valueOf(parts[2]);
+                Token t3 = Token.valueOf(parts[3]);
+
+                if (game.canTakeThreeDifferentGems(p, t1, t2, t3)) {
+                    game.takeThreeDifferentGems(p, t1, t2, t3);
+                    System.out.println("AI takes 1 " + t1 + ", 1 " + t2 + ", 1 " + t3);
+                    return true;
+                }
+
+            } else if (parts[0].equals("2") && parts.length >= 2) {
+                // take 2 of the same
+                Token t = Token.valueOf(parts[1]);
+
+                if (game.canTakeTwoSameGems(p, t)) {
+                    game.takeTwoSameGems(p, t);
+                    System.out.println("AI takes 2 " + t);
+                    return true;
+                }
+
+            } else if (parts[0].equals("3") && parts.length >= 2) {
+                // buy a card (reserved or visible)
+                if (parts[1].equals("r") && parts.length >= 3) {
+                    int idx = Integer.parseInt(parts[2]);
+
+                    if (game.canBuyReservedCard(p, idx)) {
+                        Card card = p.getHand().get(idx);
+                        game.buyReservedCard(p, idx);
+                        System.out.println("AI buys reserved: " + formatCard(card));
+                        return true;
+                    }
+
+                } else {
+                    int level = Integer.parseInt(parts[1]);
+                    int slot = Integer.parseInt(parts[2]);
+
+                    if (game.canBuyVisibleCard(p, level, slot)) {
+                        Card card = board.getVisibleCards(level)[slot];
+                        game.buyVisibleCard(p, level, slot);
+                        System.out.println("AI buys: " + formatCard(card));
+                        return true;
+                    }
+                }
+
+            } else if (parts[0].equals("4") && parts.length >= 3) {
+                // reserve a card (deck or visible)
+                if (parts[1].equals("deck")) {
+                    int level = Integer.parseInt(parts[2]);
+
+                    if (game.canReserveDeckCard(p, level)) {
+                        game.reserveDeckCard(p, level);
+                        System.out.println("AI reserves from deck " + level);
+                        return true;
+                    }
+
+                } else {
+                    int level = Integer.parseInt(parts[1]);
+                    int slot = Integer.parseInt(parts[2]);
+
+                    if (game.canReserveVisibleCard(p, level, slot)) {
+                        Card card = board.getVisibleCards(level)[slot];
+                        game.reserveVisibleCard(p, level, slot);
+                        System.out.println("AI reserves: " + formatCard(card));
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("AI move failed: " + e.getMessage());
+        }
+
+        return false;
+    }
+
+    // AI version: automatically return the least-needed tokens if over 10
+    private static void returnExcessTokensAI(Game game, Player p) {
+        if (!game.mustReturnTokens(p)) {
+            return;
+        }
+
+        int toReturn = game.getNumTokensToReturn(p);
+        List<Token> tokens = SplendorAI.chooseTokensToReturn(p, game.getBoard(), toReturn);
+
+        for (Token t : tokens) {
             game.returnToken(p, t, 1);
-            returned++;
-            System.out.println("Returned 1 " + t + ". " +
-                    (toReturn - returned) + " more to go.");
-        } else {
-            System.out.println("Invalid or you don't have that color.");
+        }
+
+        System.out.println("AI returns " + toReturn + " token(s).");
+    }
+
+    // human version: prompt the player to pick which tokens to return until they're at 10
+    private static void returnExcessTokens(Game game, Player p, Scanner sc) {
+        if (!game.mustReturnTokens(p)) {
+            return;
+        }
+
+        int toReturn = game.getNumTokensToReturn(p);
+        System.out.println("You have " + p.getTotalTokenCount() +
+                " tokens. Max is 10. Return " + toReturn + ".");
+
+        int returned = 0;
+        while (returned < toReturn) {
+            System.out.print("Color to return (green/white/blue/black/red/gold): ");
+            String line = sc.nextLine().trim().toLowerCase();
+
+            Token t = parseToken(line);
+            if (t == null && line.equals("gold")) {
+                t = Token.GOLD; // parseToken skips gold, so handle it separately
+            }
+
+            if (t != null && p.getTokenCount(t) > 0) {
+                game.returnToken(p, t, 1);
+                returned++;
+                System.out.println("Returned 1 " + t + ". " +
+                        (toReturn - returned) + " more to go.");
+            } else {
+                System.out.println("Invalid or you don't have that color.");
+            }
         }
     }
-}
 
-private static void checkNobleVisit(Game game, Player p) {
-    Noble noble = game.checkAndAwardNoble(p);
-    if (noble != null) {
-        System.out.println("A noble visits! " + noble + " (+3 pts)");
+    // check if a noble wants to visit after the player's turn and print if so
+    private static void checkNobleVisit(Game game, Player p) {
+        Noble noble = game.checkAndAwardNoble(p);
+        if (noble != null) {
+            System.out.println("A noble visits! " + noble + " (+3 pts)");
+        }
     }
-}
 
+    // converts a color string typed by the player to the matching Token — returns null for unknown input
     private static Token parseToken(String s) {
         if (s == null) return null;
         switch (s) {

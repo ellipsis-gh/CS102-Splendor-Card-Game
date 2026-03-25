@@ -8,7 +8,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// handles reading cards from a CSV file and building the default noble pool
 public class CardLoader {
+
+    // converts the color string from the CSV to the matching Token
     private static Token parseColor(String color) {
         switch (color.trim()) {
             case "Black": return Token.BLACK;
@@ -16,18 +19,19 @@ public class CardLoader {
             case "Green": return Token.GREEN;
             case "Red":   return Token.RED;
             case "White": return Token.WHITE;
-            default:      return Token.GREEN;
+            default:      return Token.GREEN; // fallback — shouldn't normally happen
         }
     }
 
+    // reads all cards from a CSV — expected columns: level, color, pv, black, blue, green, red, white
     public static List<Card> loadCards(String path) throws IOException {
         List<Card> cards = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(path))) {
-            String header = br.readLine();
+            String header = br.readLine(); // skip the header row
             String line;
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(",");
-                if (parts.length < 8) continue;
+                if (parts.length < 8) continue; // skip any malformed rows
                 int level = Integer.parseInt(parts[0].trim());
                 Token bonus = parseColor(parts[1]);
                 int pv = Integer.parseInt(parts[2].trim());
@@ -43,14 +47,42 @@ public class CardLoader {
         return cards;
     }
 
-    public static List<Noble> createDefaultNobles() {
+    public static List<Noble> loadNobles(String path) throws IOException {
         List<Noble> nobles = new ArrayList<>();
-        Map<Token, Integer> cost;
-        cost = new HashMap<>(); cost.put(Token.BLACK, 4); cost.put(Token.BLUE, 4); nobles.add(new Noble(3, cost));
-        cost = new HashMap<>(); cost.put(Token.GREEN, 4); cost.put(Token.RED, 4); nobles.add(new Noble(3, cost));
-        cost = new HashMap<>(); cost.put(Token.BLUE, 4); cost.put(Token.WHITE, 4); nobles.add(new Noble(3, cost));
-        cost = new HashMap<>(); cost.put(Token.BLACK, 3); cost.put(Token.GREEN, 3); cost.put(Token.WHITE, 3); nobles.add(new Noble(3, cost));
-        cost = new HashMap<>(); cost.put(Token.BLUE, 3); cost.put(Token.RED, 3); cost.put(Token.WHITE, 3); nobles.add(new Noble(3, cost));
+        try (BufferedReader br = new BufferedReader(new FileReader(path))) {
+            String header = br.readLine(); // skip the header row
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length < 6) continue;
+
+                int prestigePoints = Integer.parseInt(parts[0].trim());
+                Map<Token, Integer> cost = new HashMap<>();
+
+                int black = Integer.parseInt(parts[1].trim());
+                int blue = Integer.parseInt(parts[2].trim());
+                int green = Integer.parseInt(parts[3].trim());
+                int red = Integer.parseInt(parts[4].trim());
+                int white = Integer.parseInt(parts[5].trim());
+
+                if (black > 0) cost.put(Token.BLACK, black);
+                if (blue > 0) cost.put(Token.BLUE, blue);
+                if (green > 0) cost.put(Token.GREEN, green);
+                if (red > 0) cost.put(Token.RED, red);
+                if (white > 0) cost.put(Token.WHITE, white);
+
+                nobles.add(new Noble(prestigePoints, cost));
+            }
+        }
         return nobles;
+    }
+
+    // loads nobles from CSV so the data is kept outside the code
+    public static List<Noble> createDefaultNobles() {
+        try {
+            return loadNobles("NobleData.csv");
+        } catch (IOException e) {
+            throw new RuntimeException("Could not load NobleData.csv", e);
+        }
     }
 }

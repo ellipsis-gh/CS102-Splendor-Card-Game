@@ -4,14 +4,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// the physical game board — holds tokens, face-up cards, nobles, and the three decks
 public class Board {
     private final Map<Token, Integer> availableTokens = new HashMap<>();
     private       List<Noble> nobles;
-    private final Deck deck1;
-    private final Deck deck2;
-    private final Deck deck3;
+    private final Deck deck1; // level 1 deck (cheapest cards)
+    private final Deck deck2; // level 2 deck
+    private final Deck deck3; // level 3 deck (most expensive / highest value)
 
-    private final Card[] level1Visible = new Card[4];
+    private final Card[] level1Visible = new Card[4]; // 4 face-up slots per level
     private final Card[] level2Visible = new Card[4];
     private final Card[] level3Visible = new Card[4];
 
@@ -22,10 +23,10 @@ public class Board {
         this.deck3 = d3;
 
         initializeTokens(playerCount);
-        refillMarket();
+        refillMarket(); // deal the starting face-up cards
     }
 
-    // Setup tokens based on player count
+    // setup tokens based on player count
     private void initializeTokens(int playerCount) {
         int gemCount;
         if (playerCount == 2)
@@ -40,9 +41,10 @@ public class Board {
         availableTokens.put(Token.BLUE, gemCount);
         availableTokens.put(Token.BLACK, gemCount);
         availableTokens.put(Token.RED, gemCount);
-        availableTokens.put(Token.GOLD, 5); // Always 5 gold
+        availableTokens.put(Token.GOLD, 5); // gold is always 5 regardless of player count
     }
 
+    // fill any empty card slots by drawing from the appropriate deck
     public void refillMarket() {
         for (int i = 0; i < 4; i++) {
             if (level1Visible[i] == null)
@@ -58,6 +60,7 @@ public class Board {
         return availableTokens;
     }
 
+    // take tokens off the board when a player picks them up
     public void removeToken(Token t, int count) {
         int current = availableTokens.getOrDefault(t, 0);
         if (current < count)
@@ -65,10 +68,12 @@ public class Board {
         availableTokens.put(t, current - count);
     }
 
+    // put tokens back when a player pays or returns them
     public void addToken(Token t, int count) {
         availableTokens.put(t, availableTokens.getOrDefault(t, 0) + count);
     }
 
+    // returns the 4 visible cards for the given level
     public Card[] getVisibleCards(int level) {
         switch (level) {
             case 1:
@@ -86,29 +91,27 @@ public class Board {
         return nobles;
     }
 
+    // remove a noble once a player has claimed it
     public void removeNoble(Noble n) {
         nobles.remove(n);
     }
 
-    // Returns the card and removes it from the slot (does not refill immediately,
-    // GameController handles that or Board does)
-    // Here we let specific method remove it
+    // removes the card from its slot and returns it — caller is responsible for refilling
     public Card takeCard(int level, int index) {
         Card[] row = getVisibleCards(level);
         if (index < 0 || index >= row.length)
             return null;
         Card c = row[index];
-        row[index] = null;
+        row[index] = null; // leave the slot empty until refillMarket() is called
         return c;
     }
 
+    // need at least 4 of a color on the board to allow taking 2 of the same
     public boolean canTakeTwo(Token t) {
         return availableTokens.getOrDefault(t, 0) >= 4;
     }
 
-    /**
-     * Check if we can take 3 different tokens (all different, not gold, all available).
-     */
+    // checks that 3 different non-gold tokens are all available on the board
     public boolean canTakeThreeDifferent(Token t1, Token t2, Token t3) {
         if (t1 == Token.GOLD || t2 == Token.GOLD || t3 == Token.GOLD)
             return false;
@@ -120,9 +123,7 @@ public class Board {
         return true;
     }
 
-    /**
-     * Draw a card from the top of a deck (for reserving).
-     */
+    // draws from the top of a deck — used when a player reserves blind
     public Card drawFromDeck(int level) {
         if (level == 1) return deck1.draw();
         if (level == 2) return deck2.draw();
@@ -130,6 +131,7 @@ public class Board {
         return null;
     }
 
+    // whether there are any cards left to draw from that level's deck
     public boolean deckHasCards(int level) {
         if (level == 1) return !deck1.isEmpty();
         if (level == 2) return !deck2.isEmpty();
@@ -137,4 +139,3 @@ public class Board {
         return false;
     }
 }
-

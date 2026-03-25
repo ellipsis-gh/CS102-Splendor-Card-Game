@@ -7,14 +7,42 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Scanner;
 
+
+// it asks for the server IP and port
+// it connects to the game server
+// it listens for messages from the server and prints them
+// it reads what the player types
+// it sends those typed commands to the server
+// it stops when the player types QUIT or the connection closes
+
 public class ClientMain {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
 
-        System.out.print("Enter server IP: ");
-        String host = sc.nextLine().trim();
-
+        String host;
         int port = 5000;
+
+        if (args.length > 0 && !args[0].isBlank()) {
+            host = args[0].trim();
+            if (args.length > 1 && !args[1].isBlank()) {
+                try {
+                    port = Integer.parseInt(args[1].trim());
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            System.out.println("Connecting to " + host + ":" + port + "...");
+        } else {
+            System.out.print("Enter server IP: ");
+            host = sc.nextLine().trim();
+            System.out.print("Enter port (default 5000): ");
+            String portText = sc.nextLine().trim();
+            if (!portText.isEmpty()) {
+                try {
+                    port = Integer.parseInt(portText);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
 
         try (
             Socket socket = new Socket(host, port);

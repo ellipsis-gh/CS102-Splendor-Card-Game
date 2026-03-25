@@ -10,9 +10,12 @@ import model.Player;
 import model.Token;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class GameServer {
@@ -21,10 +24,36 @@ public class GameServer {
     public GameServer(int port) {
         this.port = port;
     }
-
+    //printlocal addressess is to know the server ip for the client to connect to the server
+    private void printLocalAddresses() {
+        System.out.println("Connect using one of these IPs:");
+        try {
+            System.out.println("  localhost / 127.0.0.1 (this machine only)");
+            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface ni : interfaces) {
+                if (ni.isLoopback() || !ni.isUp()) continue;
+                for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
+                    if (addr.isLoopbackAddress()) continue;
+                    String host = addr.getHostAddress();
+                    if (host.contains("%")) host = host.split("%")[0];
+                    if (addr.getHostAddress().indexOf(':') < 0) {
+                        System.out.println("  " + host + " (port " + port + ")");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("  (could not enumerate: " + e.getMessage() + ")");
+        }
+    }
+    // the main strtup method for the server
+    // it runs the ServerSocketand client for player1
+    // it waits for player 2 to connect
+    // call runGame(client1, client2) once both players are ready.
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started on port " + port);
+            printLocalAddresses();
+            System.out.println("Clients: run run_client.bat and enter one of the IPs above");
             System.out.println("Waiting for Player 1...");
 
             Socket socket1 = serverSocket.accept();
@@ -62,6 +91,8 @@ public class GameServer {
             System.out.println("Server error: " + e.getMessage());
         }
     }
+    //it creates the actual Game object by calling createGame()
+    //it ends the latest board/player state to both clients using broadcastState()
 
     private void runGame(ClientHandler client1, ClientHandler client2) {
         try {
@@ -86,6 +117,8 @@ public class GameServer {
                 currentClient.send("BUY 1-0");
                 currentClient.send("BUYR 0");
                 currentClient.send("RESERVE 1-0");
+                currentClient.send("RESERVEDECK 1");
+                currentClient.send("RETURN red 1   (only when over token limit)");
                 currentClient.send("QUIT");
 
                 otherClient.send("WAITING FOR " + current.getName());
@@ -118,6 +151,8 @@ public class GameServer {
                     }
                 }
 
+                enforceTokenLimit(game, current, currentClient, otherClient);
+
                 if (game.checkAndAwardNoble(current) != null) {
                     currentClient.send("A noble visits you.");
                     otherClient.send(current.getName() + " received a noble.");
@@ -143,7 +178,44 @@ public class GameServer {
             client2.close();
         }
     }
+    // it makes sure the current player is not holding more than 10 tokens
+    private void enforceTokenLimit(Game game, Player player, ClientHandler currentClient, ClientHandler otherClient)
+            throws IOException {
+        while (game.mustReturnTokens(player)) {
+            int mustReturn = game.getNumTokensToReturn(player);
+            broadcastState(game, currentClient, otherClient);
+            currentClient.send("TOKEN LIMIT: You have " + player.getTotalTokenCount() + " tokens (max 10).");
+            currentClient.send("Return " + mustReturn + " token(s) with: RETURN <color> <count>");
+            currentClient.send("Example: RETURN red 1");
+            otherClient.send("Waiting: " + player.getName() + " must return " + mustReturn + " token(s).");
 
+            boolean ok = false;
+            while (!ok) {
+                String line = currentClient.readLine();
+                if (line == null) {
+                    otherClient.send(player.getName() + " disconnected. Game over.");
+                    currentClient.close();
+                    otherClient.close();
+                    throw new IOException("Player disconnected");
+                }
+
+                line = line.trim();
+                if (line.equalsIgnoreCase("QUIT")) {
+                    currentClient.send("You quit the game.");
+                    otherClient.send(player.getName() + " quit the game.");
+                    currentClient.close();
+                    otherClient.close();
+                    throw new IOException("Player quit");
+                }
+
+                ok = handleReturnCommand(game, player, line, currentClient);
+                if (!ok) {
+                    currentClient.send("Invalid return. Use: RETURN <color> <count>");
+                }
+            }
+        }
+    }
+    //it print the current board and players info, then sends the same state to both clients.
     private void broadcastState(Game game, ClientHandler c1, ClientHandler c2) {
         String boardText = NetworkFormatter.formatBoard(game.getBoard());
         String p1Text = NetworkFormatter.formatPlayer(game.getPlayers().get(0));
@@ -157,7 +229,7 @@ public class GameServer {
         c2.send(p1Text);
         c2.send(p2Text);
     }
-
+    //it sets up a Splendor match.
     private Game createGame(String player1Name, String player2Name) throws IOException {
         List<Card> allCards = CardLoader.loadCards("Splendor Cards.csv");
 
@@ -196,7 +268,7 @@ public class GameServer {
 
         return new Game(board, players);
     }
-
+    // it parses and executes the main turn commands entered by the player.
     private boolean handleCommand(Game game, Player p, String command, ClientHandler client) {
         String[] parts = command.split("\\s+");
         if (parts.length == 0) {
@@ -266,6 +338,14 @@ public class GameServer {
                     client.send("OK: Reserved visible card.");
                     return true;
 
+                case "RESERVEDECK":
+                    if (parts.length != 2) return false;
+                    int deckLevel = Integer.parseInt(parts[1]);
+                    if (!game.canReserveDeckCard(p, deckLevel)) return false;
+                    game.reserveDeckCard(p, deckLevel);
+                    client.send("OK: Reserved deck card.");
+                    return true;
+
                 default:
                     return false;
             }
@@ -274,7 +354,34 @@ public class GameServer {
             return false;
         }
     }
+    // Similar idea to handleCommand(), but only for return command and  used when the player has too many tokens.
+    private boolean handleReturnCommand(Game game, Player p, String line, ClientHandler client) {
+        String[] parts = line.split("\\s+");
+        if (parts.length != 3) return false;
+        if (!"RETURN".equalsIgnoreCase(parts[0])) return false;
 
+        Token token = parseTokenAllowGold(parts[1]);
+        if (token == null) return false;
+
+        int count;
+        try {
+            count = Integer.parseInt(parts[2]);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        if (count <= 0) return false;
+
+        int have = p.getTokens().getOrDefault(token, 0);
+        if (have < count) return false;
+
+        int mustReturn = game.getNumTokensToReturn(p);
+        if (count > mustReturn) return false;
+
+        game.returnToken(p, token, count);
+        client.send("OK: Returned " + count + " " + token);
+        return true;
+    }
+    // it Converts a text color like "red" or "blue" into the matching Token enum.
     private Token parseToken(String s) {
         if (s == null) return null;
 
@@ -286,5 +393,11 @@ public class GameServer {
             case "red": return Token.RED;
             default: return null;
         }
+    }
+    //Same idea as parseToken(), but to accepts "gold".
+    private Token parseTokenAllowGold(String s) {
+        if (s == null) return null;
+        if ("gold".equalsIgnoreCase(s)) return Token.GOLD;
+        return parseToken(s);
     }
 }

@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-java -cp classes network.ServerMain
+java -cp classes network.ServerMain "$@"
