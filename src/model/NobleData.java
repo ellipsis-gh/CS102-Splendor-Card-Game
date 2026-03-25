@@ -4,7 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+// all 10 nobles from the standard Splendor set
+// the game picks a subset depending on player count
 public class NobleData {
+
+    // returns the full pool so the game can pick the right number of nobles
     public static List<Noble> nobleDataList() {
         List<Noble> nobleDeck = new ArrayList<>();
 
