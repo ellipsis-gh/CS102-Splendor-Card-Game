@@ -35,7 +35,7 @@ public class Bank {
             if (t == Token.GOLD) {
                 tokens.put(t, 5); // gold is always 5
             } else {
-                tokens.put(t, normalCount);
+                tokens.put(t, normalCount);//if its not gold 
             }
         }
     }
