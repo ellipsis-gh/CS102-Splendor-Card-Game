@@ -5,19 +5,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// represents one player — tracks their tokens, cards, nobles, and score
 public class Player {
     private final String name;
-    private final boolean isHuman;
+    private final boolean isHuman; // false means the AI is controlling this player
 
     private final Map<Token, Integer> tokens = new HashMap<>();
-    private final List<Card> hand = new ArrayList<>(); // Reserved cards
-    private final List<Card> purchasedCards = new ArrayList<>();
+    private final List<Card> hand = new ArrayList<>();           // reserved cards (max 3)
+    private final List<Card> purchasedCards = new ArrayList<>();  // bought cards
     private final List<Noble> nobles = new ArrayList<>();
 
     public Player(String name, boolean isHuman) {
         this.name = name;
         this.isHuman = isHuman;
-        // Initialize tokens with 0
+        // start every token count at 0
         for (Token t : Token.values()) {
             tokens.put(t, 0);
         }
@@ -35,10 +36,12 @@ public class Player {
         return tokens;
     }
 
+    // how many of a specific token this player is holding
     public int getTokenCount(Token t) {
         return tokens.getOrDefault(t, 0);
     }
 
+    // total tokens across all colors — can't exceed 10
     public int getTotalTokenCount() {
         return tokens.values().stream().mapToInt(Integer::intValue).sum();
     }
@@ -54,6 +57,7 @@ public class Player {
         tokens.put(t, current - count);
     }
 
+    // reserved cards — max 3 at a time
     public List<Card> getHand() {
         return hand;
     }
@@ -66,22 +70,24 @@ public class Player {
         return nobles;
     }
 
+    // add to hand — throws if already at the 3-card limit
     public void reserveCard(Card card) {
         if (hand.size() >= 3)
             throw new IllegalStateException("Hand is full (max 3 reserved cards)");
         hand.add(card);
     }
 
+    // move to purchased pile and remove from hand if it was reserved
     public void buyCard(Card card) {
         purchasedCards.add(card);
-        // If card was in hand (reserved), remove it
-        hand.remove(card);
+        hand.remove(card); // if it was reserved, clear it from hand too
     }
 
     public void receiveNoble(Noble noble) {
         nobles.add(noble);
     }
 
+    // check if the player's bonuses meet all of this noble's requirements
     public boolean canGetNoble(Noble noble) {
         Map<Token, Integer> playerBonus = getBonuses();
         Map<Token, Integer> cost = noble.getCost();
@@ -96,9 +102,7 @@ public class Player {
         return true;
     }
 
-    /**
-     * Check if player can afford a card (bonuses reduce cost, gold is wild).
-     */
+    // can the player pay for this card? bonuses reduce costs, gold covers the rest
     public boolean canAffordCard(Card card) {
         Map<Token, Integer> cost = card.getCost();
         Map<Token, Integer> bonuses = getBonuses();
@@ -109,7 +113,7 @@ public class Player {
         for (Token t : new Token[]{Token.BLACK, Token.BLUE, Token.GREEN, Token.RED, Token.WHITE}) {
             int cardCost = cost.getOrDefault(t, 0);
             int bonus = bonuses.getOrDefault(t, 0);
-            int effectiveCost = cardCost - bonus;
+            int effectiveCost = cardCost - bonus; // bonuses act as permanent discounts
             if (effectiveCost > 0) {
                 totalNeeded += effectiveCost;
                 int payWithColor = Math.min(getTokenCount(t), effectiveCost);
@@ -117,13 +121,11 @@ public class Player {
             }
         }
 
-        int goldNeeded = totalNeeded - totalFromRegular;
+        int goldNeeded = totalNeeded - totalFromRegular; // gold fills the remaining gap
         return goldNeeded <= getTokenCount(Token.GOLD);
     }
 
-    /**
-     * Pay for a card: deduct tokens. Uses regular tokens first, then gold.
-     */
+    // actually deduct the payment — use regular tokens first, then gold for any shortfall
     public void payForCard(Card card, Board board) {
         Map<Token, Integer> cost = card.getCost();
         Map<Token, Integer> bonuses = getBonuses();
@@ -136,7 +138,7 @@ public class Player {
                 int toPay = Math.min(getTokenCount(t), effectiveCost);
                 if (toPay > 0) {
                     removeTokens(t, toPay);
-                    board.addToken(t, toPay);
+                    board.addToken(t, toPay); // paid tokens go back to the board
                 }
                 int goldNeeded = effectiveCost - toPay;
                 if (goldNeeded > 0) {
@@ -147,17 +149,19 @@ public class Player {
         }
     }
 
+    // score = prestige points from cards + prestige from nobles
     public int getScore() {
         int cardPoints = purchasedCards.stream().mapToInt(Card::getPrestigePoints).sum();
         int noblePoints = nobles.stream().mapToInt(Noble::getPrestigePoints).sum();
         return cardPoints + noblePoints;
     }
 
+    // counts how many of each gem bonus the player has from purchased cards
     public Map<Token, Integer> getBonuses() {
         Map<Token, Integer> bonuses = new HashMap<>();
         for (Token t : Token.values()) {
             if (t == Token.GOLD)
-                continue; // Gold is not a bonus
+                continue; // gold isn't a bonus color
             bonuses.put(t, 0);
         }
         for (Card c : purchasedCards) {
