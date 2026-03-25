@@ -58,27 +58,53 @@ public class Main {
         d2.shuffle();
         d3.shuffle();
 
-        // setup board with 3 nobles for a 2-player game
+        // Interactive setup: choose number of players (2-4) and whether each is AI
+        Scanner sc = new Scanner(System.in);
+        int numPlayers = 2;
+        while (true) {
+            System.out.print("How many players? (2-4): ");
+            String line = sc.nextLine().trim();
+            try {
+                int n = Integer.parseInt(line);
+                if (n >= 2 && n <= 4) { numPlayers = n; break; }
+            } catch (NumberFormatException ignored) { }
+            System.out.println("Please enter a number between 2 and 4.");
+        }
+
+        boolean[] isAI = new boolean[numPlayers];
+        for (int i = 0; i < numPlayers; i++) {
+            while (true) {
+                System.out.print("Is Player " + (i+1) + " an AI? (y/n): ");
+                String resp = sc.nextLine().trim().toLowerCase();
+                if (resp.startsWith("y")) { isAI[i] = true; break; }
+                if (resp.startsWith("n")) { isAI[i] = false; break; }
+                System.out.println("Please answer y or n.");
+            }
+        }
+
+        // setup nobles based on number of players (players + 1)
         List<Noble> allNobles = CardLoader.createDefaultNobles();
         List<Noble> nobles = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
+        int noblesToShow = Math.min(allNobles.size(), numPlayers + 1);
+        for (int i = 0; i < noblesToShow; i++) {
             nobles.add(allNobles.get(i));
         }
-        Board board = new Board(nobles, d1, d2, d3, 2);
-        List<Player> players = new ArrayList<>();
-        players.add(new Player("Player 1", true));
 
-        Scanner sc = new Scanner(System.in);
-        System.out.print("Play vs AI? (y/n): ");
-        boolean vsAI = sc.nextLine().trim().toLowerCase().startsWith("y");
-        players.add(vsAI ? new Player("AI", false) : new Player("Player 2", true));
+        Board board = new Board(nobles, d1, d2, d3, numPlayers);
+
+        List<Player> players = new ArrayList<>();
+        for (int i = 0; i < numPlayers; i++) {
+            if (isAI[i]) {
+                players.add(new Player("AI " + (i+1), false));
+            } else {
+                players.add(new Player("Player " + (i+1), true));
+            }
+        }
 
         Game game = new Game(board, players);
 
-        boolean gameOver = false;
-
-        // main game loop
-        while (!gameOver) {
+        // main game loop — run until the Game marks it over
+        while (!game.isGameOver()) {
             Player p = game.getCurrentPlayer();
             System.out.println();
             printLine("-", 50);
@@ -139,17 +165,28 @@ public class Main {
 
                 checkNobleVisit(game, p);
 
-                if (p.getScore() >= WIN_SCORE) {
+                // if someone reached the win score, trigger the end-of-round sequence
+                if (!game.isEndTriggered() && p.getScore() >= WIN_SCORE) {
                     System.out.println();
-                    printLine("*", 50);
-                    System.out.println("  " + p.getName() + " WINS with " + p.getScore() + " points!");
-                    printLine("*", 50);
-                    gameOver = true;
-                } else {
-                    game.nextTurn();
+                    System.out.println("*** " + p.getName() + " has reached " + p.getScore() + " points! The final round will now finish. ***");
+                    game.triggerEnd(game.getCurrentPlayerIndex());
                 }
+
+                // advance to next player (Game will set gameOver when the final round completes)
+                game.nextTurn();
             }
         }
+
+        // game is over — determine and announce winner
+        Player winner = game.determineWinner();
+        System.out.println();
+        printLine("*", 50);
+        if (winner != null) {
+            System.out.println("  " + winner.getName() + " WINS with " + winner.getScore() + " points!");
+        } else {
+            System.out.println("  Game finished but no winner could be determined.");
+        }
+        printLine("*", 50);
 
         sc.close();
     }
