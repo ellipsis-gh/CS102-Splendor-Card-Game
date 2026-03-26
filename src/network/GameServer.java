@@ -1,6 +1,9 @@
 package network;
 
 import config.GameConfig;
+import game.CardLoader;
+import logic.Game;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -11,9 +14,7 @@ import java.util.Collections;
 import java.util.List;
 import model.Board;
 import model.Card;
-import model.CardLoader;
 import model.Deck;
-import model.Game;
 import model.Noble;
 import model.Player;
 import model.Token;
