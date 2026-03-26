@@ -1,9 +1,4 @@
-#!/bin/bash
+javac -d classes -cp "src" src/Main.java
 
-# Create output directory
-mkdir -p classes
+echo "Compilation successful"
 
-# Compile Java files
-javac -d classes src/config/GameConfig.java src/network/*.java src/model/*.java
-
-echo "Compilation complete."
