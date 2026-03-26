@@ -29,41 +29,41 @@ A console-based implementation of the Splendor card game for 2 players.
 Cards show: `PV:0 GREEN+ Cost: BLACKx2 BLUEx1` = 0 points, gives GREEN bonus, costs 2 black + 1 blue
 
 ## Directory Structure
-data            #csv files\
+data&nbsp;&nbsp;&nbsp;#csv files\
 |--Nobles.csv\
-|--Splendor Cards.csv\
+|--Splendor Cards.csv
 
 src\
-|--config       #configurations - change winning points, etc.\
-      |--config.properties\
-      |--GameConfig.java\
-|--game         #this package is in charge of loading decks, etc\
-      |--CardLoader.java\
-      |--ConsoleUI.java\
-      |--deckGetter.java\
-|--logic         #this package contains the AI and other game logic\
-      |--Game.java\
-      |--SplendorAI.java\
-|--model         #this package contains all base classes for game items\
-      |--Bank.java\
-      |--Board.java\
-      |--Card.java\
-      |--Deck.java\
-      |--Noble.java\
-      |--Player.java\
-      |--Token.java\
+|--config&nbsp;&nbsp;&nbsp;#configurations - change winning points, etc.\
+&nbsp;&nbsp;|--config.properties\
+&nbsp;&nbsp;|--GameConfig.java\
+|--game&nbsp;&nbsp;&nbsp;#this package is in charge of loading decks, etc\
+&nbsp;&nbsp;|--CardLoader.java\
+&nbsp;&nbsp;|--ConsoleUI.java\
+&nbsp;&nbsp;|--deckGetter.java\
+|--logic&nbsp;&nbsp;&nbsp;#this package contains the AI and other game logic\
+&nbsp;&nbsp;|--Game.java\
+&nbsp;&nbsp;|--SplendorAI.java\
+|--model&nbsp;&nbsp;&nbsp;#this package contains all base classes for game items\
+&nbsp;&nbsp;|--Bank.java\
+&nbsp;&nbsp;|--Board.java\
+&nbsp;&nbsp;|--Card.java\
+&nbsp;&nbsp;|--Deck.java\
+&nbsp;&nbsp;|--Noble.java\
+&nbsp;&nbsp;|--Player.java\
+&nbsp;&nbsp;|--Token.java\
 |--network\
-      |--ClientHandler.java\
-      |--ClientMain.java\
-      |--GameServer.java\
-      |--NetworkFormatter.java\
-      |--ServerMain      #what's this for?\
-      |--ServerMain.java\
+&nbsp;&nbsp;|--ClientHandler.java\
+&nbsp;&nbsp;|--ClientMain.java\
+&nbsp;&nbsp;|--GameServer.java\
+&nbsp;&nbsp;|--NetworkFormatter.java\
+&nbsp;&nbsp;|--ServerMain&nbsp;&nbsp;&nbsp;#what's this for?\
+&nbsp;&nbsp;|--ServerMain.java\
 |--util\
-      |--ui\
-         |--ConsoleUI.java\
-      |--GameApp.java\
-|--Main.java      #user's access point\
+&nbsp;&nbsp;|--ui\
+&nbsp;&nbsp;&nbsp;&nbsp;|--ConsoleUI.java\
+&nbsp;&nbsp;|--GameApp.java\
+|--Main.java&nbsp;&nbsp;&nbsp;#user's access point\
       
 
 ## Files
