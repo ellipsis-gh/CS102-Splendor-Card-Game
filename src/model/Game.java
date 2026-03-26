@@ -11,6 +11,10 @@ public class Game {
     private boolean gameOver;
     private Player winner;
 
+    // new fields to support finishing the round after someone reaches the win score
+    private boolean endTriggered = false;       // whether end-of-game round has been triggered
+    private int triggerPlayerIndex = -1;        // which player triggered the end (their index)
+
     // set up a new game with a board and a list of players
     public Game(Board board, List<Player> players) {
         if (players == null || players.isEmpty()) {
@@ -321,11 +325,28 @@ public class Game {
 
     // advance to the next player — also checks if the game just ended
     public void nextTurn() {
-        checkGameEnd();
-
-        if (!gameOver) {
+        // If the end-of-game round has been triggered, finish the round and stop when we return
+        // to the triggering player index. That ensures every player has had the same number of turns.
+        if (endTriggered) {
             currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+            if (currentPlayerIndex == triggerPlayerIndex) {
+                gameOver = true;
+            }
+            return;
         }
+
+        // normal behaviour: just advance
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+    }
+
+    // called by external code to signal the finishing round when someone reaches the win score
+    public void triggerEnd(int triggeringPlayerIndex) {
+        this.endTriggered = true;
+        this.triggerPlayerIndex = triggeringPlayerIndex;
+    }
+
+    public boolean isEndTriggered() {
+        return endTriggered;
     }
 
     // game ends when someone hits 15 points — winner is determined after the round finishes
