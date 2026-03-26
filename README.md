@@ -34,36 +34,36 @@ data&nbsp;&nbsp;&nbsp;#csv files\
 |--Splendor Cards.csv
 
 src\
-|--config&nbsp;&nbsp;&nbsp;#configurations - change winning points, etc.\
-&nbsp;&nbsp;|--config.properties\
-&nbsp;&nbsp;|--GameConfig.java\
-|--game&nbsp;&nbsp;&nbsp;#this package is in charge of loading decks, etc\
-&nbsp;&nbsp;|--CardLoader.java\
-&nbsp;&nbsp;|--ConsoleUI.java\
-&nbsp;&nbsp;|--deckGetter.java\
-|--logic&nbsp;&nbsp;&nbsp;#this package contains the AI and other game logic\
-&nbsp;&nbsp;|--Game.java\
-&nbsp;&nbsp;|--SplendorAI.java\
-|--model&nbsp;&nbsp;&nbsp;#this package contains all base classes for game items\
-&nbsp;&nbsp;|--Bank.java\
-&nbsp;&nbsp;|--Board.java\
-&nbsp;&nbsp;|--Card.java\
-&nbsp;&nbsp;|--Deck.java\
-&nbsp;&nbsp;|--Noble.java\
-&nbsp;&nbsp;|--Player.java\
-&nbsp;&nbsp;|--Token.java\
+|--config&emsp;&emsp;&emsp;#configurations - change winning points, etc.\
+&emsp;&emsp;|--config.properties\
+&emsp;&emsp;;|--GameConfig.java\
+|--game&emsp;&emsp;&emsp;#this package is in charge of loading decks, etc\
+&emsp;&emsp;|--CardLoader.java\
+&emsp;&emsp;|--ConsoleUI.java\
+&emsp;&emsp;|--deckGetter.java\
+|--logic&emsp;&emsp;&emsp;#this package contains the AI and other game logic\
+&emsp;&emsp;|--Game.java\
+&emsp;&emsp;|--SplendorAI.java\
+|--model&emsp;&emsp;&emsp;#this package contains all base classes for game items\
+&emsp;&emsp;|--Bank.java\
+&emsp;&emsp;|--Board.java\
+&emsp;&emsp;|--Card.java\
+&emsp;&emsp;|--Deck.java\
+&emsp;&emsp;|--Noble.java\
+&emsp;&emsp;|--Player.java\
+&emsp;&emsp;|--Token.java\
 |--network\
-&nbsp;&nbsp;|--ClientHandler.java\
-&nbsp;&nbsp;|--ClientMain.java\
-&nbsp;&nbsp;|--GameServer.java\
-&nbsp;&nbsp;|--NetworkFormatter.java\
-&nbsp;&nbsp;|--ServerMain&nbsp;&nbsp;&nbsp;#what's this for?\
-&nbsp;&nbsp;|--ServerMain.java\
+&emsp;&emsp;|--ClientHandler.java\
+&emsp;&emsp;|--ClientMain.java\
+&emsp;&emsp;|--GameServer.java\
+&emsp;&emsp;|--NetworkFormatter.java\
+&emsp;&emsp;|--ServerMain&nbsp;&nbsp;&nbsp;#what's this for?\
+&emsp;&emsp;|--ServerMain.java\
 |--util\
-&nbsp;&nbsp;|--ui\
-&nbsp;&nbsp;&nbsp;&nbsp;|--ConsoleUI.java\
-&nbsp;&nbsp;|--GameApp.java\
-|--Main.java&nbsp;&nbsp;&nbsp;#user's access point\
+&emsp;&emsp;|--ui\
+&emsp;&emsp;&emsp;&emsp;|--ConsoleUI.java\
+&emsp;&emsp;|--GameApp.java\
+|--Main.java&emsp;&emsp;&emsp;#user's access point\
       
 
 ## Files
