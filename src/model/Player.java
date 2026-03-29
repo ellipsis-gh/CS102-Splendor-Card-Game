@@ -4,9 +4,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import interfaces.IPlayer;
 
 // represents one player — tracks their tokens, cards, nobles, and score
-public class Player {
+public class Player implements IPlayer {
     private final String name;
     private final boolean isHuman; // false means the AI is controlling this player
 

@@ -3,9 +3,10 @@ package model;
 import java.util.Collections;
 import java.util.ArrayList;
 import java.util.List;
+import interfaces.IDeck;
 
 // a deck of cards for one level — handles shuffling and drawing
-public class Deck {
+public class Deck implements IDeck {
     private final int level;
     private final ArrayList<Card> cards;
 

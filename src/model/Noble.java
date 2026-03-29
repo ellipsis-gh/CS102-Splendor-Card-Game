@@ -1,9 +1,10 @@
 package model;
 
 import java.util.Map;
+import interfaces.INoble;
 
 // nobles visit players who collect enough bonuses — they give 3 prestige points
-public class Noble {
+public class Noble implements INoble {
     private final int prestigePoints; // always 3 in the standard game
     private final Map<Token, Integer> cost; // bonuses a player needs to attract this noble
 

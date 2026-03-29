@@ -3,9 +3,10 @@ package model;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import interfaces.IBoard;
 
 // the physical game board — holds tokens, face-up cards, nobles, and the three decks
-public class Board {
+public class Board implements IBoard {
     private final Map<Token, Integer> availableTokens = new HashMap<>();
     private       List<Noble> nobles;
     private final Deck deck1; // level 1 deck (cheapest cards)

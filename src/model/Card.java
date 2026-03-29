@@ -1,9 +1,10 @@
 package model;
 
 import java.util.Map;
+import interfaces.ICard;
 
 // one card in the game — has a level, prestige points, a gem bonus, and a cost to buy
-public class Card {
+public class Card implements ICard {
     private final int level;                // 1, 2, or 3
     private final int prestigePoints;       // victory points this card gives when purchased
     private final Token bonus;              // the gem color it permanently adds as a discount
