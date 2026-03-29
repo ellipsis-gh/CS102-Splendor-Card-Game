@@ -2,8 +2,9 @@ package model;
 
 import java.util.HashMap;
 import java.util.Map;
+import interfaces.IBank;
 
-public class Bank {
+public class Bank implements IBank {
 
     private final Map<Token, Integer> tokens; // token type -> how many left
 
