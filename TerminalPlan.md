@@ -2,32 +2,144 @@
 
 ## Goal
 
-Replace the current `Scanner`-based input loop in `Main.java` and the plain-text rendering in `ConsoleUI.java` with a fully interactive terminal UI that:
+Rewrite `ConsoleUI.java` into a fully interactive terminal UI. No new files are created. `Main.java` is updated only where needed to call the new `ConsoleUI` methods instead of its own inline print/Scanner logic.
 
-- Always shows the full board state on screen at all times
-- Clears and redraws the screen at the start of every new turn
-- All input is done with arrow keys + Enter — no typing commands
-- Contextual view commands available at any time (reserved cards, nobles, market, help)
-- ANSI colour coding and box-drawing characters make the board readable and attractive
+The result must be:
+
+- Always showing the full board state on screen
+- Clearing and redrawing the screen at the start of every new turn
+- Arrow-key navigation for all input — no typed commands
+- Contextual view overlays (reserved cards, nobles, market, opponent details)
+- A help overlay accessible with `?` at any time
+- ANSI colour-coded and styled with box-drawing characters
+- Highest code quality: clear Javadoc on every public method, inline comments on non-obvious logic, named constants for every magic value, no duplicated rendering code
 
 ---
 
-## Library: Lanterna
+## Files Changed
 
-Use **[Lanterna](https://github.com/mabe02/lanterna)** (pure-Java terminal UI library, one JAR).
+| File | What changes |
+|------|-------------|
+| `src/model/ConsoleUI.java` | Complete rewrite — becomes the single class responsible for all rendering and all human input. Contains ANSI constants, menu engine, overlay renderer, and all view/help screens as private methods. |
+| `src/model/Main.java` | Remove inline `printBoard`, `printPlayerStatus`, all `do*` action methods, and direct `Scanner` calls. Replace with calls to the new `ConsoleUI` public methods. Game loop structure stays the same. |
 
-- Provides: raw key input (arrows, Enter, Esc), ANSI colour, screen buffering, cursor control
-- Cross-platform: Windows Terminal, macOS Terminal, Linux — no `stty` hacks needed
-- Add to project: download `lanterna-3.x.x.jar` and put it on the classpath, or add via Maven/Gradle
+No other files are touched. No new files are created.
+
+---
+
+## ConsoleUI — Internal Structure
+
+Everything lives inside one class. Private sections are separated by block comments for readability.
+
+```
+ConsoleUI.java
+│
+├── // ── ANSI CONSTANTS ──────────────────────────────────────
+│   private static final String RESET, BOLD, DIM, INVERT, CLEAR ...
+│   private static final String FG_GREEN, FG_WHITE, FG_BLUE ...
+│
+├── // ── PUBLIC API ───────────────────────────────────────────
+│   + render(Board, List<Player>, int currentIndex)
+│       Clears screen, draws full board + both player panels.
+│       Called at the start of every turn.
+│
+│   + doHumanTurn(Game, Player) : boolean
+│       Drives the full multi-step turn: action menu → sub-menu
+│       → confirm → execute game move → return-tokens if needed.
+│       Returns true when a valid move has been made.
+│
+│   + showNobleVisit(Noble)
+│       Prints a one-line notification when a noble is awarded.
+│
+│   + showWinner(Player)
+│       Prints the end-of-game banner.
+│
+├── // ── MENU ENGINE ──────────────────────────────────────────
+│   - showMenu(String prompt, List<String> options, boolean[] enabled) : int
+│       Core arrow-key menu. Renders the option list with an
+│       inverted-colour highlight on the selected row. UP/DOWN
+│       move the cursor (skipping disabled rows automatically).
+│       ENTER returns the chosen index. ESC returns -1 (go back).
+│       '?' opens the help overlay. 'v'/'V' opens the view menu.
+│
+│   - showConfirm(String question) : boolean
+│       Renders a horizontal Yes / No prompt. LEFT/RIGHT or
+│       TAB switch between them. ENTER confirms. ESC cancels.
+│
+├── // ── VIEW OVERLAYS ────────────────────────────────────────
+│   - showViewMenu(Board, Player, List<Player>)
+│       Opens the View sub-menu and routes to the chosen overlay.
+│
+│   - showReservedCards(Player)
+│       Overlay: player's reserved hand with full cost details
+│       and a "still need X" line computed from current bonuses.
+│
+│   - showNobles(Board, Player)
+│       Overlay: all nobles with per-noble progress for the player.
+│
+│   - showFullMarket(Board)
+│       Overlay: all 12 visible card slots with complete costs.
+│
+│   - showOpponentDetails(List<Player>, int currentIndex)
+│       Overlay: tokens, bonuses, card counts for all opponents.
+│
+├── // ── HELP OVERLAY ─────────────────────────────────────────
+│   - showHelp()
+│       Full-screen overlay: controls, game rules, symbol guide.
+│
+├── // ── ACTION SUB-MENUS ─────────────────────────────────────
+│   - doTakeThreeGems(Game, Player) : boolean
+│   - doTakeTwoSameGems(Game, Player) : boolean
+│   - doBuyCard(Game, Player) : boolean
+│   - doReserveCard(Game, Player) : boolean
+│   - doReturnTokens(Game, Player)
+│
+├── // ── BOARD RENDERING ──────────────────────────────────────
+│   - renderHeader(Player)
+│   - renderBankAndNobles(Board)
+│   - renderMarketRow(Board, int level)
+│   - renderPlayerPanel(Player)
+│   - renderOpponentSummary(List<Player>, int currentIndex)
+│   - renderKeyBar()          ← bottom hint line: [↑↓] Navigate ...
+│
+└── // ── RENDERING UTILITIES ──────────────────────────────────
+    - colorForToken(Token) : String
+    - gemDot(Token) : String         ← coloured ● symbol
+    - stars(int n) : String          ← yellow ★ repeated n times
+    - formatCost(Map<Token,Integer>) : String
+    - formatTokenMap(Map<Token,Integer>) : String
+    - drawBox(List<String> lines)    ← wraps content in ┌─┐ box
+    - readKey() : int[]              ← raw keypress reader
+    - printColoured(String text, String ansiCode)
+```
+
+---
+
+## Public API — Called from Main.java
+
+`Main.java` creates one `ConsoleUI` instance and uses only these methods:
+
+```java
+ConsoleUI ui = new ConsoleUI();
+
+// start of each human turn
+ui.render(game.getBoard(), game.getPlayers(), game.getCurrentPlayerIndex());
+
+// get and execute the human player's move
+boolean moved = ui.doHumanTurn(game, player);
+
+// after a noble is awarded
+ui.showNobleVisit(noble);
+
+// at game end
+ui.showWinner(game.determineWinner());
+```
+
+Everything else — arrow-key input, menus, overlays, sub-menus — is handled internally.
 
 ---
 
 ## Screen Layout (every turn)
-
-The screen is split into two zones that are always visible:
-
-- **Top zone** — the static board display, redrawn fresh at the start of each turn
-- **Bottom zone** — the interactive prompt / menu area, updated as the player navigates
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
@@ -42,135 +154,132 @@ The screen is split into two zones that are always visible:
 ║  ● RED:  3   ║                                               ║
 ║  ★ GLD:  5   ║                                               ║
 ╠══════════════╩═══════════════════════════════════════════════╣
-║  LEVEL 3  [deck: 12 remaining]                               ║
-║  [3-0]  ★★★  +BLK  BLK×7                                    ║
-║  [3-1]  ★★★  +WHT  GRN×3  WHT×5  BLU×3                     ║
-║  [3-2]  ★★   +RED  RED×6  BLK×3                             ║
-║  [3-3]  ★    +GRN  BLU×7                                    ║
+║  LEVEL 3  [deck: 12]                                         ║
+║  [3-0]  ★★★  +● BLK   BLK×7                                 ║
+║  [3-1]  ★★★  +● WHT   GRN×3  WHT×5  BLU×3                  ║
+║  [3-2]  ★★   +● RED   RED×6  BLK×3                          ║
+║  [3-3]  ★    +● GRN   BLU×7                                 ║
 ╠══════════════════════════════════════════════════════════════╣
-║  LEVEL 2  [deck: 20 remaining]                               ║
-║  [2-0]  ★★   +BLU  GRN×2  RED×1  BLK×4                     ║
-║  [2-1]  ★    +RED  WHT×3  BLU×2  BLK×2                     ║
+║  LEVEL 2  [deck: 20]                                         ║
+║  [2-0]  ★★   +● BLU   GRN×2  RED×1  BLK×4                  ║
+║  [2-1]  ★    +● RED   WHT×3  BLU×2  BLK×2                  ║
 ║  [2-2]  (empty)                                              ║
-║  [2-3]  ★    +GRN  RED×5                                    ║
+║  [2-3]  ★    +● GRN   RED×5                                 ║
 ╠══════════════════════════════════════════════════════════════╣
-║  LEVEL 1  [deck: 30 remaining]                               ║
-║  [1-0]       +BLK  GRN×1  BLU×2  RED×1                     ║
-║  [1-1]       +WHT  BLK×2  RED×1                             ║
-║  [1-2]       +BLU  GRN×3                                    ║
-║  [1-3]       +RED  WHT×1  BLU×1  GRN×1  BLK×1              ║
+║  LEVEL 1  [deck: 30]                                         ║
+║  [1-0]       +● BLK   GRN×1  BLU×2  RED×1                  ║
+║  [1-1]       +● WHT   BLK×2  RED×1                          ║
+║  [1-2]       +● BLU   GRN×3                                 ║
+║  [1-3]       +● RED   WHT×1  BLU×1  GRN×1  BLK×1           ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  YOUR STATUS                                                  ║
-║  Tokens:   GRN:2  WHT:1  BLU:0  BLK:3  RED:1  GLD:1  (8/10)║
-║  Bonuses:  GRN:1  WHT:0  BLU:2  BLK:0  RED:0               ║
+║  Tokens:  GRN:2  WHT:1  BLU:0  BLK:3  RED:1  GLD:1  (8/10) ║
+║  Bonuses: GRN:1  WHT:0  BLU:2  BLK:0  RED:0                ║
 ║  Reserved: 1 card  •  Nobles earned: 0                       ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  OPPONENTS                                                    ║
-║  AI  •  Score: 3  •  Tokens: 5  •  Bonuses: BLK:2  •  Res:1 ║
+║  AI  •  Score:3  •  Tokens:5  •  Bonuses: BLK:2  •  Res:1   ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  [↑↓] Navigate   [Enter] Select   [?] Help   [V] View        ║
 ╚══════════════════════════════════════════════════════════════╝
-
-  What would you like to do?
-
-  > Take 3 different gems
-    Take 2 of the same gem
-    Buy a card
-    Reserve a card
 ```
 
 ---
 
 ## Colour Scheme (ANSI)
 
-| Element                        | Style                                      | ANSI code            |
-|--------------------------------|--------------------------------------------|----------------------|
-| GREEN gem / token / bonus      | Bright Green text                          | `\u001B[32m`         |
-| WHITE gem / token / bonus      | Bright White text                          | `\u001B[97m`         |
-| BLUE gem / token / bonus       | Bright Blue text                           | `\u001B[34m`         |
-| BLACK gem / token / bonus      | Dark Grey text                             | `\u001B[90m`         |
-| RED gem / token / bonus        | Bright Red text                            | `\u001B[31m`         |
-| GOLD gem / token               | Bright Yellow text                         | `\u001B[33m`         |
-| Prestige points ★              | Yellow                                     | `\u001B[33m`         |
-| Section headers                | Bold                                       | `\u001B[1m`          |
-| Current player name            | Bold Cyan                                  | `\u001B[1;36m`       |
-| **Selected menu item**         | Inverted (black text on white background)  | `\u001B[7m`          |
-| Unaffordable / unavailable     | Dim dark grey                              | `\u001B[2;90m`       |
-| Affordable card (highlighted)  | Bold white                                 | `\u001B[1;97m`       |
-| Warning / error message        | Bright Red                                 | `\u001B[31m`         |
-| Info / notification            | Bright Cyan                                | `\u001B[36m`         |
-| Reset all                      | —                                          | `\u001B[0m`          |
+All codes are `private static final String` constants at the top of `ConsoleUI`.
+
+| Element                       | Style                                     | ANSI code        |
+|-------------------------------|-------------------------------------------|------------------|
+| GREEN gem / token / bonus     | Bright Green                              | `\u001B[32m`     |
+| WHITE gem / token / bonus     | Bright White                              | `\u001B[97m`     |
+| BLUE gem / token / bonus      | Bright Blue                               | `\u001B[34m`     |
+| BLACK gem / token / bonus     | Dark Grey                                 | `\u001B[90m`     |
+| RED gem / token / bonus       | Bright Red                                | `\u001B[31m`     |
+| GOLD gem / token              | Bright Yellow                             | `\u001B[33m`     |
+| Prestige points ★             | Yellow                                    | `\u001B[33m`     |
+| Section headers               | Bold                                      | `\u001B[1m`      |
+| Current player name           | Bold Cyan                                 | `\u001B[1;36m`   |
+| **Selected menu row**         | Inverted (black on white)                 | `\u001B[7m`      |
+| Disabled / unaffordable row   | Dim dark grey                             | `\u001B[2;90m`   |
+| Warning / error message       | Bright Red                                | `\u001B[31m`     |
+| Notification (noble, etc.)    | Bright Cyan                               | `\u001B[36m`     |
+| Reset all                     | —                                         | `\u001B[0m`      |
 
 ---
 
 ## Arrow-Key Menu System
 
-This is the core interaction model — identical in feel to the Claude Code terminal prompt.
+### How the cursor works
 
-### How it works
-
-Every prompt in the game is rendered as a vertical list of options. The player never types anything — all navigation is with keys:
-
-| Key           | Action                                      |
-|---------------|---------------------------------------------|
-| `↑` / `↓`    | Move the highlight cursor up or down        |
-| `Enter`       | Confirm the currently highlighted option    |
-| `Esc`         | Go back one step (cancel current sub-menu)  |
-| `?`           | Open the Help overlay (from anywhere)       |
-| `V`           | Open the View menu (from anywhere)          |
-
-### What the cursor looks like
-
-The selected row is rendered with **inverted colours** (white background, black text) and a `>` marker. Unselected rows have no background. This is exactly how Claude Code renders its `Yes / No / Allow` prompts.
+Every prompt is a vertical list. The selected row is shown with **inverted colours** and a `>` prefix. Unselected rows have a two-space indent. This matches the Claude Code `Yes / No / Allow` style exactly.
 
 ```
   What would you like to do?
 
-  > Take 3 different gems          <- selected: inverted colours, > marker
-    Take 2 of the same gem         <- unselected: normal text
+  > Take 3 different gems          ← selected: inverted + >
+    Take 2 of the same gem         ← unselected: normal text
     Buy a card
     Reserve a card
 ```
 
-When the player presses `↓`:
+Pressing `↓`:
 
 ```
   What would you like to do?
 
     Take 3 different gems
-  > Take 2 of the same gem         <- cursor moved down
+  > Take 2 of the same gem         ← cursor moved
     Buy a card
     Reserve a card
 ```
 
-Unavailable actions (e.g. "Take 2 same" when no colour has 4+ tokens) are shown in dim grey and are **skipped** when the cursor moves over them — the cursor jumps past them automatically, just like disabled options in Claude Code.
+Disabled rows (invalid moves) are dim grey. The cursor **skips over them** automatically — pressing `↓` when the cursor is above a disabled row jumps past it to the next enabled row.
 
 ```
   What would you like to do?
 
   > Take 3 different gems
-    Take 2 of the same gem  (no colour has 4+ available)    <- dim, skipped
+    Take 2 of the same gem  (no colour has 4+)   ← dim, skipped
     Buy a card
     Reserve a card
 ```
 
-### Confirmation prompts (Yes / No style)
+### Yes / No confirmation prompt
 
-For any destructive or irreversible action (e.g. reserving a blind deck card), a confirmation is shown as a two-option horizontal prompt — exactly like Claude Code's `Yes / No`:
+Used before any irreversible action (blind deck reserve). Rendered as a horizontal pair, not a list. `←` / `→` or Tab switch focus. Enter confirms.
 
 ```
-  Reserve the top card from Deck 2? You won't see it until after.
+  Reserve the top card from Deck 2?
 
   > Yes    No
 ```
 
-Left/Right arrows or Tab move between `Yes` and `No`. Enter confirms.
+After pressing `→`:
+
+```
+  Reserve the top card from Deck 2?
+
+    Yes  > No
+```
+
+### Key bindings
+
+| Key        | Action                                         |
+|------------|------------------------------------------------|
+| `↑` / `↓` | Move cursor (skips disabled rows)              |
+| `Enter`    | Confirm selection                              |
+| `Esc`      | Cancel / go back one step                     |
+| `←` / `→` | Switch focus in Yes/No prompt                 |
+| `?`        | Open help overlay (from anywhere in a turn)   |
+| `V`        | Open view menu (from anywhere in a turn)      |
 
 ---
 
 ## Multi-Step Action Flows
 
-### Step 1 — Action type (shown every turn)
+### Step 1 — Action type
 
 ```
   What would you like to do?
@@ -183,41 +292,29 @@ Left/Right arrows or Tab move between `Yes` and `No`. Enter confirms.
 
 ### Step 2a — Take 3 different gems
 
-Pick three colours one at a time. Already-chosen colours are shown in dim grey and are skipped by the cursor automatically.
+Three sequential colour picks. Already-chosen colours and zero-stock colours are dim and skipped.
 
 ```
-  Pick your 1st gem:
-
-  > ● GREEN   (4 available)
-    ● WHITE   (3 available)
-    ● BLUE    (2 available)
-    ● BLACK   (4 available)
-    ● RED     (3 available)
+  Pick your 1st gem:              |  Pick your 2nd gem:
+                                  |
+  > ● GREEN   (4 available)       |    ● GREEN  (chosen)    ← dim, skipped
+    ● WHITE   (3 available)       |  > ● WHITE  (3 available)
+    ● BLUE    (2 available)       |    ● BLUE   (2 available)
+    ● BLACK   (4 available)       |    ● BLACK  (4 available)
+    ● RED     (3 available)       |    ● RED    (3 available)
 ```
 
-After picking GREEN:
+After all three are chosen, a confirm prompt appears:
 
 ```
-  Pick your 2nd gem:
-
-    ● GREEN   (chosen)          <- dim, cursor skips this
-  > ● WHITE   (3 available)
-    ● BLUE    (2 available)
-    ● BLACK   (4 available)
-    ● RED     (3 available)
-```
-
-After picking WHITE, only one colour remains — auto-confirm or show final pick. Then show a confirmation summary:
-
-```
-  Confirm: Take 1 ● GREEN, 1 ● WHITE, 1 ● BLUE?
+  Confirm: take 1 ● GREEN, 1 ● WHITE, 1 ● BLUE?
 
   > Yes    No
 ```
 
 ### Step 2b — Take 2 of the same gem
 
-Only colours with 4+ tokens on the board appear. If only one qualifies, it is auto-selected and goes straight to confirm.
+Only colours with 4+ tokens on the board are listed. If exactly one qualifies, it goes straight to confirm.
 
 ```
   Pick a gem colour (need 4+ on board):
@@ -228,52 +325,51 @@ Only colours with 4+ tokens on the board appear. If only one qualifies, it is au
 
 ### Step 2c — Buy a card
 
-All buyable cards are listed: market cards (levels 1–3) and the player's reserved cards. Affordable ones are shown normally; unaffordable ones are dim grey but the cursor still visits them (so the player can see what they are missing).
+All market cards (levels 1–3) and reserved cards listed together. Affordable cards are full brightness. Unaffordable cards are dim with an inline shortfall note. Cursor visits all rows but pressing Enter on an unaffordable one shows an error and stays put.
 
 ```
   Which card would you like to buy?
 
-  > [1-0]       +● BLK   GRN×1  BLU×2  RED×1      (can afford)
-    [1-1]       +● WHT   BLK×2  RED×1              (can afford)
-    [2-0]  ★★   +● BLU   GRN×2  RED×1  BLK×4      (need 1 more BLK)   <- dim
-    [2-1]  ★    +● RED   WHT×3  BLU×2  BLK×2      (need 2 more WHT)   <- dim
-    [r-0]  ★    +● BLU   RED×2  BLK×1              (can afford)
+  > [1-0]       +● BLK   GRN×1  BLU×2  RED×1      can afford
+    [1-1]       +● WHT   BLK×2  RED×1              can afford
+    [2-0]  ★★   +● BLU   GRN×2  RED×1  BLK×4      need 1 more BLK   ← dim
+    [r-0]  ★    +● BLU   RED×2  BLK×1              can afford
 ```
 
-If the player tries to confirm an unaffordable card, the cursor stays put and an inline error appears below the list in red:
+If the player tries to confirm a dim card:
 
 ```
-  You cannot afford [2-0]. You need 1 more BLK gem.
+  You cannot afford [2-0] — you still need 1 BLK gem.
 ```
 
 ### Step 2d — Reserve a card
 
-Both visible market cards and blind deck draws are listed together.
+Visible market cards and blind deck draws in one list. Blind entries include remaining deck count.
 
 ```
-  Which card would you like to reserve?  (You have 1/3 reserved)
+  Which card would you like to reserve?  (1 / 3 slots used)
 
   > [1-0]       +● BLK   GRN×1  BLU×2  RED×1
     [1-1]       +● WHT   BLK×2  RED×1
     [2-0]  ★★   +● BLU   GRN×2  RED×1  BLK×4
-    ── Blind draw from deck ──
-    [deck 1]  Level 1 top card  (30 remaining)
-    [deck 2]  Level 2 top card  (20 remaining)
-    [deck 3]  Level 3 top card  (12 remaining)
+    ── blind draw ──────────────────────────
+    [deck 1]    Level 1 top card  (30 remaining)
+    [deck 2]    Level 2 top card  (20 remaining)
+    [deck 3]    Level 3 top card  (12 remaining)
 ```
 
-Selecting a deck entry shows the Yes/No confirmation prompt described above. Selecting a visible card goes straight through.
+Blind draws show the Yes / No confirm. Visible cards confirm immediately.
 
 ### Return tokens (when over 10)
 
-Shown as a sub-step after any action that causes the player to exceed 10 tokens. Colours the player doesn't hold are dim and skipped.
+Shown automatically after any move that puts the player over 10. Colours with zero tokens are dim and skipped.
 
 ```
   You have 11 tokens. You must return 1.
 
-    ● GREEN   (you have 0)    <- dim, skipped
+    ● GREEN   (you have 0)   ← dim, skipped
   > ● WHITE   (you have 1)
-    ● BLUE    (you have 0)    <- dim, skipped
+    ● BLUE    (you have 0)   ← dim, skipped
     ● BLACK   (you have 3)
     ● RED     (you have 1)
     ★ GOLD    (you have 1)
@@ -281,9 +377,7 @@ Shown as a sub-step after any action that causes the player to exceed 10 tokens.
 
 ---
 
-## View Commands (available at any time)
-
-Pressing `V` at any point during a turn opens the **View Menu** as an overlay. The board behind it does not change.
+## View Overlays (`V` key)
 
 ```
   View...
@@ -295,90 +389,87 @@ Pressing `V` at any point during a turn opens the **View Menu** as an overlay. T
     Back
 ```
 
-### View: My Reserved Cards
+All overlays are rendered by `drawBox()` — one private method that wraps any list of strings in a `┌─┐` border. Pressing any key closes the overlay and returns to the same menu step.
 
-Shows the player's full reserved hand with complete card details. Pressing any key closes the overlay.
+### My Reserved Cards
 
 ```
-  ┌─ Your Reserved Cards (1/3) ─────────────────────────────┐
+  ┌─ Your Reserved Cards (1 / 3) ───────────────────────────┐
   │                                                           │
   │  [r-0]  ★  +● BLUE                                       │
-  │      Cost:  RED×2  BLK×1                                 │
-  │      You need:  RED×0  BLK×0  (can afford now)           │
+  │      Cost:   RED×2  BLK×1                                │
+  │      Still need:  nothing — can afford now               │
   │                                                           │
   │  [r-1]  ★★  +● GREEN                                     │
-  │      Cost:  WHT×2  BLU×3  RED×1                          │
-  │      You need:  WHT×1  BLU×1  (need 2 more gems)         │
+  │      Cost:   WHT×2  BLU×3  RED×1                         │
+  │      Still need:  WHT×1  BLU×1                           │
   │                                                           │
-  │  [Press any key to close]                                 │
+  │  [Any key to close]                                       │
   └───────────────────────────────────────────────────────────┘
 ```
 
-Crucially, the "You need" line shows exactly what is still missing after applying the player's current bonuses and tokens — not the raw card cost.
+"Still need" is computed from the card cost minus the player's current bonuses and tokens — not the raw cost.
 
-### View: All Nobles
-
-Shows each noble's full requirements and how close the player is to earning each one.
+### All Nobles
 
 ```
-  ┌─ Nobles ────────────────────────────────────────────────┐
-  │                                                          │
-  │  [0]  3 pts  —  needs WHT×3  BLU×3                      │
-  │      Your bonuses:  WHT:0  BLU:2  →  need WHT×3  BLU×1  │
-  │                                                          │
-  │  [1]  3 pts  —  needs BLK×4                             │
-  │      Your bonuses:  BLK:0  →  need BLK×4                │
-  │                                                          │
-  │  [2]  3 pts  —  needs GRN×3  RED×2                      │
-  │      Your bonuses:  GRN:1  RED:0  →  need GRN×2  RED×2  │
-  │                                                          │
-  │  [Press any key to close]                                │
-  └──────────────────────────────────────────────────────────┘
+  ┌─ Nobles ─────────────────────────────────────────────────┐
+  │                                                           │
+  │  [0]  3 pts  —  WHT×3  BLU×3                             │
+  │      Progress:  WHT: 0/3   BLU: 2/3  →  need WHT×3      │
+  │                                                           │
+  │  [1]  3 pts  —  BLK×4                                    │
+  │      Progress:  BLK: 0/4   →  need BLK×4                │
+  │                                                           │
+  │  [2]  3 pts  —  GRN×3  RED×2                             │
+  │      Progress:  GRN: 1/3   RED: 0/2  →  need GRN×2 RED×2│
+  │                                                           │
+  │  [Any key to close]                                       │
+  └───────────────────────────────────────────────────────────┘
 ```
 
-### View: Full Market
+Progress uses the player's purchased-card bonuses only (not tokens).
 
-Shows all 12 visible market cards with complete cost details laid out in a grid, grouped by level. Useful when the main board is too compact to read card costs clearly.
+### Full Market
 
 ```
-  ┌─ Market ─────────────────────────────────────────────────┐
+  ┌─ Full Market ────────────────────────────────────────────┐
   │                                                           │
   │  LEVEL 3  (deck: 12 remaining)                           │
-  │  [3-0]  ★★★  +● BLK   Cost: BLK×7                       │
-  │  [3-1]  ★★★  +● WHT   Cost: GRN×3  WHT×5  BLU×3        │
-  │  [3-2]  ★★   +● RED   Cost: RED×6  BLK×3                │
-  │  [3-3]  ★    +● GRN   Cost: BLU×7                       │
+  │  [3-0]  ★★★  +● BLK   BLK×7                             │
+  │  [3-1]  ★★★  +● WHT   GRN×3  WHT×5  BLU×3              │
+  │  [3-2]  ★★   +● RED   RED×6  BLK×3                      │
+  │  [3-3]  ★    +● GRN   BLU×7                             │
   │                                                           │
   │  LEVEL 2  (deck: 20 remaining)                           │
-  │  [2-0]  ★★   +● BLU   Cost: GRN×2  RED×1  BLK×4        │
-  │  [2-1]  ★    +● RED   Cost: WHT×3  BLU×2  BLK×2        │
-  │  [2-2]  (empty slot)                                     │
-  │  [2-3]  ★    +● GRN   Cost: RED×5                       │
+  │  [2-0]  ★★   +● BLU   GRN×2  RED×1  BLK×4              │
+  │  [2-1]  ★    +● RED   WHT×3  BLU×2  BLK×2              │
+  │  [2-2]  (empty)                                          │
+  │  [2-3]  ★    +● GRN   RED×5                             │
   │                                                           │
   │  LEVEL 1  (deck: 30 remaining)                           │
-  │  [1-0]       +● BLK   Cost: GRN×1  BLU×2  RED×1        │
-  │  [1-1]       +● WHT   Cost: BLK×2  RED×1                │
-  │  [1-2]       +● BLU   Cost: GRN×3                       │
-  │  [1-3]       +● RED   Cost: WHT×1  BLU×1  GRN×1  BLK×1 │
+  │  [1-0]       +● BLK   GRN×1  BLU×2  RED×1              │
+  │  [1-1]       +● WHT   BLK×2  RED×1                      │
+  │  [1-2]       +● BLU   GRN×3                             │
+  │  [1-3]       +● RED   WHT×1  BLU×1  GRN×1  BLK×1       │
   │                                                           │
-  │  [Press any key to close]                                 │
+  │  [Any key to close]                                       │
   └───────────────────────────────────────────────────────────┘
 ```
 
-### View: Opponent Details
-
-Shows a full breakdown of each opponent's tokens, bonuses, purchased card count, and reserved card count (not the cards themselves — those are secret).
+### Opponent Details
 
 ```
   ┌─ Opponent Details ───────────────────────────────────────┐
   │                                                           │
-  │  AI  •  Score: 3 pts  •  10 tokens held                  │
-  │      Tokens:   GRN:0  WHT:2  BLU:1  BLK:4  RED:2  GLD:1 │
-  │      Bonuses:  GRN:0  WHT:0  BLU:0  BLK:2  RED:0        │
-  │      Purchased: 3 cards   Reserved: 1 card (hidden)      │
-  │      Nobles earned: 0                                     │
+  │  AI  •  Score: 3 pts                                     │
+  │      Tokens:    GRN:0  WHT:2  BLU:1  BLK:4  RED:2  GLD:1│
+  │      Bonuses:   GRN:0  WHT:0  BLU:0  BLK:2  RED:0       │
+  │      Purchased: 3 cards                                   │
+  │      Reserved:  1 card (hidden)                          │
+  │      Nobles:    0 earned                                  │
   │                                                           │
-  │  [Press any key to close]                                 │
+  │  [Any key to close]                                       │
   └───────────────────────────────────────────────────────────┘
 ```
 
@@ -386,137 +477,137 @@ Shows a full breakdown of each opponent's tokens, bonuses, purchased card count,
 
 ## Help Overlay (`?` key)
 
-Pressing `?` at any point opens a full-screen help overlay explaining all controls and game rules. It does not interrupt the current action — pressing any key closes it and returns to exactly where the player was.
-
 ```
   ┌─ Help ───────────────────────────────────────────────────┐
   │                                                           │
   │  CONTROLS                                                 │
-  │  ↑ / ↓      Move cursor up / down                        │
+  │  ↑ / ↓      Move cursor up and down                      │
   │  Enter      Confirm selected option                       │
-  │  Esc        Go back / cancel                             │
-  │  V          Open view menu (reserved, nobles, market...)  │
+  │  Esc        Go back / cancel current step                │
+  │  ← / →      Switch between Yes and No                    │
+  │  V          Open view menu                               │
   │  ?          Show this help screen                         │
   │                                                           │
   │  GAME RULES                                               │
-  │  Goal        Reach 15 prestige points first               │
-  │  Gems        Take 3 different OR 2 of the same (need 4+) │
-  │  Buy         Pay gem cost; bonuses reduce cost            │
-  │  Reserve     Take any card; get 1 GOLD token              │
-  │  Nobles      Auto-awarded when you have enough bonuses    │
-  │  Token limit Max 10 tokens — return extras after a move   │
+  │  Goal        First to 15 prestige points wins             │
+  │  Gems        Take 3 different OR 2 same (need 4+ on board)│
+  │  Buy         Pay gem cost; your bonuses reduce cost first │
+  │  Reserve     Take any card face-down; receive 1 GOLD      │
+  │  Nobles      Auto-awarded when bonus total meets requirement│
+  │  Token limit Max 10 — return extras immediately after move│
   │                                                           │
   │  SYMBOLS                                                  │
   │  ★           1 prestige point                             │
-  │  ●           Gem token (coloured by type)                 │
-  │  +● BLK      Card gives 1 permanent BLACK bonus           │
+  │  ●           Gem token (colour-coded by type)             │
+  │  +● BLK      This card gives 1 permanent BLACK discount   │
   │  [r-0]       Your reserved card at slot 0                 │
-  │  [deck 2]    Blind draw from Level 2 deck                 │
+  │  [deck 2]    Blind draw from the Level 2 deck             │
   │                                                           │
-  │  [Press any key to close]                                 │
+  │  [Any key to close]                                       │
   └───────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Files to Create / Modify
+## Code Quality Requirements
 
-### New files
+These apply to every method written in `ConsoleUI.java`:
 
-| File | Purpose |
-|------|---------|
-| `src/model/TerminalRenderer.java` | Renders the full static board (top zone) using ANSI codes and box-drawing chars. Stateless — call `render(board, players, currentIndex)` to redraw the whole screen. |
-| `src/model/AnsiMenu.java` | The core menu engine. Takes a `List<MenuItem>` (label + enabled flag), draws the list with the cursor, reads raw keypresses from Lanterna, returns the chosen index. Handles cursor skipping over disabled items. |
-| `src/model/AnsiOverlay.java` | Renders modal overlays (bordered box, title, multi-line content). Used by all View panels and the Help screen. Takes a `List<String>` of content lines, renders the box, blocks until any key is pressed. |
-| `src/model/AnsiColors.java` | All ANSI escape code constants: colours, bold, dim, reset, invert, clear screen. No logic — pure constants. |
-| `src/model/TurnController.java` | Orchestrates a single human turn. Calls `TerminalRenderer.render()` at the start, then drives the multi-step action flow using `AnsiMenu`, handles the return-tokens sub-step, and calls the appropriate `Game` methods. |
+### Javadoc on every public method
+```java
+/**
+ * Clears the terminal and renders the full game state for the start of a turn.
+ * This is the only method that should call {@link #clearScreen()} directly.
+ *
+ * @param board         the current board state (tokens, cards, nobles)
+ * @param players       all players in turn order
+ * @param currentIndex  index into {@code players} of whose turn it is
+ */
+public void render(Board board, List<Player> players, int currentIndex) { ... }
+```
 
-### Modified files
+### Inline comments on non-obvious logic
+```java
+// Arrow keys arrive as a 3-byte escape sequence: ESC, '[', then A/B/C/D.
+// We read the first byte; if it is 27 (ESC) we read two more to identify the key.
+// Any other first byte is treated as a regular character keypress.
+int first = System.in.read();
+```
 
-| File | Change |
-|------|--------|
-| `src/model/Main.java` | Remove `printBoard`, `printPlayerStatus`, all `do*` action methods. Replace with `TerminalRenderer.render()` + `TurnController.doHumanTurn()`. Keep setup, game loop, and AI turn handling. |
-| `src/model/ConsoleUI.java` | Delete — fully superseded by `TerminalRenderer`. |
+### Named constants — no magic values
+```java
+private static final int    MAX_TOKENS       = 10;
+private static final int    MAX_RESERVED     = 3;
+private static final int    MIN_STACK_FOR_TWO = 4;
+private static final String GEM_SYMBOL       = "\u25CF"; // ●
+private static final String STAR_SYMBOL      = "\u2605"; // ★
+```
+
+### No duplicated rendering — one helper, used everywhere
+```java
+// Every coloured gem reference goes through this — never inline colour codes on token names
+private String gemDot(Token token) {
+    return colorForToken(token) + GEM_SYMBOL + RESET;
+}
+```
+
+### Method length — keep methods focused
+No method should do more than one logical thing. If a method is rendering and also computing affordability, split it.
+
+---
+
+## Raw Key Input (no library needed)
+
+Arrow keys send a 3-byte escape sequence over stdin. `ConsoleUI` reads them directly using a private `readKey()` method. The terminal must be switched to raw mode so keypresses arrive immediately without waiting for Enter.
+
+```java
+/**
+ * Reads a single keypress from stdin and returns an int code.
+ * Regular characters return their ASCII value.
+ * Arrow keys return one of the KEY_* constants below.
+ * Blocks until a key is pressed.
+ */
+private int readKey() throws IOException { ... }
+
+// Key code constants — used everywhere instead of raw numbers
+private static final int KEY_UP    = 1000;
+private static final int KEY_DOWN  = 1001;
+private static final int KEY_LEFT  = 1002;
+private static final int KEY_RIGHT = 1003;
+private static final int KEY_ENTER = 13;
+private static final int KEY_ESC   = 27;
+```
+
+**Raw mode on Windows (Windows Terminal):**
+```java
+// Switch to raw mode using a ProcessBuilder calling cmd.exe
+// This is done once in the ConsoleUI constructor and restored on JVM shutdown
+private void enableRawMode() {
+    // Windows: enable ENABLE_VIRTUAL_TERMINAL_INPUT via a one-shot PowerShell call
+    // or rely on Windows Terminal which handles ANSI natively without any changes
+}
+```
+
+For cross-platform reliability, if raw mode cannot be enabled (e.g. inside an IDE), `ConsoleUI` falls back gracefully to the original numbered-menu `Scanner` input so the game still runs — raw mode is best-effort.
 
 ---
 
 ## Implementation Order
 
-1. **`AnsiColors.java`** — constants only, no dependencies
-2. **`TerminalRenderer.java`** — render the static board; verify it looks correct in terminal
-3. **`AnsiOverlay.java`** — build and test the overlay box renderer standalone
-4. **`AnsiMenu.java`** — arrow-key list navigation; test with a hardcoded dummy list
-5. **`TurnController.java`** — wire action flows using renderer + menu + overlay
-6. **`Main.java`** — swap out old print/scanner code
-7. Delete `ConsoleUI.java`
+1. Write all ANSI constants and `colorForToken` / `gemDot` / `stars` helpers — nothing depends on these, and they are used everywhere
+2. Write `drawBox` — needed by all overlays
+3. Write `renderHeader`, `renderBankAndNobles`, `renderMarketRow`, `renderPlayerPanel`, `renderOpponentSummary`, `renderKeyBar`, then wire them into `render`
+4. Write `readKey` and verify arrow keys work in the target terminal
+5. Write `showMenu` and `showConfirm` — the full menu engine
+6. Write `showHelp` and all four view overlays
+7. Write the action sub-menus (`doTakeThreeGems`, `doTakeTwoSameGems`, `doBuyCard`, `doReserveCard`, `doReturnTokens`), then wire into `doHumanTurn`
+8. Update `Main.java` — replace inline print/Scanner code with `ui.render()` and `ui.doHumanTurn()`
 
 ---
 
-## Key Implementation Notes
+## Out of Scope
 
-### Screen clear at turn start
-
-```java
-// AnsiColors.java
-public static final String CLEAR      = "\u001B[2J";   // erase entire screen
-public static final String CURSOR_HOME = "\u001B[H";   // move cursor to top-left
-
-// TerminalRenderer.render() — first two lines
-System.out.print(AnsiColors.CLEAR);
-System.out.print(AnsiColors.CURSOR_HOME);
-```
-
-### MenuItem model for the menu engine
-
-```java
-// AnsiMenu.java — inner record
-record MenuItem(String label, boolean enabled) {}
-```
-
-`enabled = false` items are rendered in `AnsiColors.DIM` and the cursor skips over them automatically when the player presses `↑` or `↓`. This mirrors the Claude Code `Yes / No / Allow` behaviour exactly.
-
-### Reading arrow keys with Lanterna
-
-```java
-KeyStroke key = terminal.readInput(); // blocks until a key is pressed
-switch (key.getKeyType()) {
-    case ArrowUp    -> moveCursorUp();
-    case ArrowDown  -> moveCursorDown();
-    case Enter      -> confirmSelection();
-    case Escape     -> goBack();
-    case Character  -> handleCharKey(key.getCharacter()); // '?' and 'v'
-}
-```
-
-### Cursor redraw strategy (no flicker)
-
-Do not clear the whole screen when the cursor moves within a menu — only redraw the menu lines. Save the terminal row where the menu starts, then overwrite only those lines using cursor-positioning escape codes. The board above stays untouched.
-
-```java
-// Move cursor to specific row and rewrite just that line
-System.out.printf("\u001B[%d;1H", menuStartRow + i); // move to row, col 1
-System.out.print(renderMenuRow(i, i == selectedIndex));
-```
-
-### Affordability annotation in buy menu
-
-Before rendering the buy-card list, call `player.canAffordCard(card)` for each card. For unaffordable cards, also compute and display the shortfall per colour so the player knows exactly what they are missing — this is the "need 1 more BLK" inline annotation.
-
-### Token symbols
-
-```
-●  (U+25CF)  coloured gem circle
-★  (U+2605)  yellow prestige star
-─  (U+2500)  horizontal box line (overlay separators)
-│  (U+2502)  vertical box line
-┌ ┐ └ ┘  (U+250C U+2510 U+2514 U+2518)  overlay corners
-```
-
----
-
-## Out of Scope for This Plan
-
-- Network / multiplayer UI (handled separately in `src/network/`)
-- AI turn visualisation beyond the current printed log line
+- Network / multiplayer UI (`src/network/` — untouched)
+- AI turn visualisation (AI already prints its move via `Main.java` — no change)
 - Mouse support
 - Saving / loading game state
