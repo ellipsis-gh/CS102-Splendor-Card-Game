@@ -8,7 +8,9 @@ import model.Token;
 
 public interface IBoard {
     void refillMarket();
+
     Map<Token, Integer> getAvailableTokens();
+    
     void removeToken(Token t, int count);
     void addToken(Token t, int count);
     Card[] getVisibleCards(int level);
