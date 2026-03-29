@@ -1,3 +1,3 @@
-javac -d classes "src" src\Main.javac
-
-echo "Compilation successful"
+@echo off
+javac -d classes -cp src src\Main.java
+echo Compilation successful
