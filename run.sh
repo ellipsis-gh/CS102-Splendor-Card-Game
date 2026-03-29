@@ -1,4 +1,1 @@
-#!/bin/bash
-set -e
-
-java -cp classes model.Main
+java -cp classes Main

@@ -1,4 +1,2 @@
-#!/bin/bash
-set -e
-
-java -cp classes network.ServerMain "$@"
+javac -d classes -cp src src/network/ServerMain.java
+java -cp classes network.ServerMain

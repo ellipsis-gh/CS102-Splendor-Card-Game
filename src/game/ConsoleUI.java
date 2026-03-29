@@ -1,7 +1,13 @@
-package model;
+package game;
 
 import java.util.List;
 import java.util.Map;
+
+import model.Board;
+import model.Card;
+import model.Noble;
+import model.Player;
+import model.Token;
 
 // handles printing the game state to the console
 public class ConsoleUI {

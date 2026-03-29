@@ -1,12 +1,15 @@
-package model;
+package game;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+
+import model.Card;
+import model.Token;
 
 // reads the CSV and splits all cards into 3 separate lists by level
 public class deckGetter {

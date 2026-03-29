@@ -1,9 +1,15 @@
-package model;
+package logic;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import model.Board;
+import model.Card;
+import model.Noble;
+import model.Player;
+import model.Token;
 
 // simple greedy AI: buy if possible, reserve a good card, otherwise take gems we need
 public class SplendorAI {

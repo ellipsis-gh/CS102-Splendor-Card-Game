@@ -1,53 +1,72 @@
-package model;
+package util;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+
+import config.GameConfig;
+import game.CardLoader;
+import logic.Game;
+import logic.SplendorAI;
+import model.Board;
+import model.Card;
+import model.Deck;
+import model.Noble;
+import model.Player;
+import model.Token;
+import util.ui.ConsoleUI;
 
 /**
  * Splendor - Console version
  * A simple card game where players collect gems to buy cards and attract nobles.
  * First to 15 prestige points wins!
  */
-public class Main {
+public class GameApp {
 
-    private static final int WIN_SCORE = 15;
-    // private static final int MAX_TOKENS = 10;
+    //retrieving points from config.properties
+    private static final int WIN_SCORE = GameConfig.getWinningPoints();
 
-    public static void main(String[] args) {
-        System.out.println();
-        printLine("=", 50);
-        System.out.println("         S P L E N D O R");
-        System.out.println("    Collect gems. Buy cards. Win!");
-        printLine("=", 50);
-        System.out.println();
-        System.out.println("  Goal: First to 15 points wins!");
-        System.out.println("  - Take gems (3 different OR 2 same)");
-        System.out.println("  - Buy cards with gems (bonuses = discounts)");
-        System.out.println("  - Reserve cards, get nobles for bonus points");
-        System.out.println("  - Max 10 tokens - return extras when over");
-        System.out.println();
+    //retrieving cards file path from config.properties
+    private static final String CARDS_FILEPATH = GameConfig.getCardFilePath();
+
+    //retrieving nobles file path from config.properties
+    private static final String NOBLES_FILEPATH = GameConfig.getNobleFilePath();
+
+
+    // Builds and returns a fully initialized Game instance. Throws IOException when card load fails.
+
+    //gang..don't need to throw exception again if we already caught everything...
+
+    public static Game setupGame(int numPlayers, boolean[] isAI){
 
         // load cards from CSV
-        List<Card> allCards;
+        List<Card> allCards = new ArrayList<Card>();
         try {
-            allCards = CardLoader.loadCards("Splendor Cards.csv");
+            allCards = CardLoader.loadCards(CARDS_FILEPATH);
         } catch (IOException e) {
             System.err.println("Error: Could not load Splendor Cards.csv");
             System.err.println("Make sure the file is in the same folder as the program.");
-            return;
+            e.getStackTrace();
         }
 
         // split the full card list into 3 separate level piles
         List<Card> level1 = new ArrayList<>();
         List<Card> level2 = new ArrayList<>();
         List<Card> level3 = new ArrayList<>();
+
+        //edited syntaxing
         for (Card c : allCards) {
-            if (c.getLevel() == 1) level1.add(c);
-            else if (c.getLevel() == 2) level2.add(c);
-            else level3.add(c);
+
+            if (c.getLevel() == 1){
+                level1.add(c);
+            } else if (c.getLevel() == 2) {
+                level2.add(c);
+            } else {
+                level3.add(c);
+            }
         }
 
         // create and shuffle each deck
@@ -59,37 +78,74 @@ public class Main {
         d3.shuffle();
 
         // setup board with 3 nobles for a 2-player game
-        List<Noble> allNobles = CardLoader.createDefaultNobles();
+        List<Noble> allNobles = new ArrayList<Noble>();
+
+        //load nobles from CSV
+        try {
+            allNobles = CardLoader.loadNobles(NOBLES_FILEPATH);
+        } catch (IOException e) {
+            System.err.println("Error: Could not load Nobles.csv");
+            System.err.println("Make sure the file is in the same folder as the program.");
+            e.printStackTrace();
+        }
+
+
+        /*setup nobles based on number of players (players + 1)
+        retrieve this information from configuration file -> based on project writeup*/
+
+
+        //pull out 3 nobles for the board
         List<Noble> nobles = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
+        int noblesToShow = GameConfig.getInitialNobles(numPlayers);
+
+        //shuffle the existing nobles
+        Collections.shuffle(allNobles);
+        for (int i = 0; i < noblesToShow; i++) {
             nobles.add(allNobles.get(i));
         }
-        Board board = new Board(nobles, d1, d2, d3, 2);
+
+
+        //setup board
+        Board board = new Board(nobles, d1, d2, d3, numPlayers);
+
+        //create a list of players 
         List<Player> players = new ArrayList<>();
-        players.add(new Player("Player 1", true));
+        for (int i = 0; i < numPlayers; i++) {
+            if (isAI[i]) {
+                players.add(new Player("AI: " + (i+1), false));
+            } else {
+                players.add(new Player("Player: " + (i+1), true));
+            }
+        }
 
-        Scanner sc = new Scanner(System.in);
-        System.out.print("Play vs AI? (y/n): ");
-        boolean vsAI = sc.nextLine().trim().toLowerCase().startsWith("y");
-        players.add(vsAI ? new Player("AI", false) : new Player("Player 2", true));
+        return new Game(board, players);
+    }
 
-        Game game = new Game(board, players);
+    // Main turn loop extracted from previous main() — prints full game state via ConsoleUI each turn
+    public static void runGameLoop(Game game, Scanner sc, ConsoleUI ui) {
+        System.out.println();
+        printLine("=", 50);
+        System.out.println("         S P L E N D O R");
+        System.out.println("    Collect gems. Buy cards. Win!");
+        printLine("=", 50);
+        System.out.println();
+        System.out.printf("  Goal: First to %d points wins!", WIN_SCORE);
+        System.out.println("  - Take gems (3 different OR 2 same)");
+        System.out.println("  - Buy cards with gems (bonuses = discounts)");
+        System.out.println("  - Reserve cards, get nobles for bonus points");
+        System.out.println("  - Max 10 tokens - return extras when over");
+        System.out.println();
 
-        boolean gameOver = false;
-
-        // main game loop
-        while (!gameOver) {
+        while (!game.isGameOver()) {
             Player p = game.getCurrentPlayer();
+
+            // display full game state (board + all players)
+            ui.displayGameState(game);
+
             System.out.println();
             printLine("-", 50);
             System.out.println("  " + p.getName() + "'s Turn");
             printLine("-", 50);
-
-            // show current board and this player's status
-            printBoard(game.getBoard());
-            System.out.println();
-            printPlayerStatus(p);
-            System.out.println();
 
             // get the player's action — human input or AI decision
             boolean validAction = false;
@@ -103,11 +159,14 @@ public class Main {
                     System.out.println("  q = Quit game");
                     System.out.print("Your choice: ");
 
+                    if (!sc.hasNextLine()) {
+                        System.out.println("\nNo input available. Exiting.");
+                        return;
+                    }
                     String input = sc.nextLine().trim().toLowerCase();
 
                     if (input.equals("q")) {
                         System.out.println("\nThanks for playing! Goodbye.");
-                        sc.close();
                         return;
                     }
 
@@ -126,7 +185,7 @@ public class Main {
             } else {
                 validAction = doAITurn(game, p);
                 System.out.print("(Press Enter to continue) ");
-                sc.nextLine();
+                if (sc.hasNextLine()) sc.nextLine();
             }
 
             // after a valid action: return excess tokens if needed, check for noble, check win
@@ -139,22 +198,31 @@ public class Main {
 
                 checkNobleVisit(game, p);
 
-                if (p.getScore() >= WIN_SCORE) {
+                // if someone reached the win score, trigger the end-of-round sequence
+                if (!game.isEndTriggered() && p.getScore() >= WIN_SCORE) {
                     System.out.println();
-                    printLine("*", 50);
-                    System.out.println("  " + p.getName() + " WINS with " + p.getScore() + " points!");
-                    printLine("*", 50);
-                    gameOver = true;
-                } else {
-                    game.nextTurn();
+                    System.out.println("*** " + p.getName() + " has reached " + p.getScore() + " points! The final round will now finish. ***");
+                    game.triggerEnd(game.getCurrentPlayerIndex());
                 }
+
+                // advance to next player (Game will set gameOver when the final round completes)
+                game.nextTurn();
             }
         }
 
-        sc.close();
+        // game is over — determine and announce winner
+        Player winner = game.determineWinner();
+        System.out.println();
+        printLine("*", 50);
+        if (winner != null) {
+            System.out.println("  " + winner.getName() + " WINS with " + winner.getScore() + " points!");
+        } else {
+            System.out.println("  Game finished but no winner could be determined.");
+        }
+        printLine("*", 50);
     }
 
-    // ---- Helper methods for printing ----
+    // ---- Helper methods for printing & actions (existing implementations remain) ----
 
     // prints a repeated character as a divider line
     private static void printLine(String ch, int len) {
@@ -236,7 +304,7 @@ public class Main {
         }
     }
 
-    // ---- Action methods ----
+    // ---- Action methods (unchanged) ----
 
     // handle "take 3 different gems" — reads 3 color names from the player
     private static boolean doTakeThreeGems(Game game, Player p, Scanner sc) {

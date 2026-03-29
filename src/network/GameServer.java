@@ -1,13 +1,8 @@
 package network;
 
-import model.Board;
-import model.Card;
-import model.CardLoader;
-import model.Deck;
-import model.Game;
-import model.Noble;
-import model.Player;
-import model.Token;
+import config.GameConfig;
+import game.CardLoader;
+import logic.Game;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -17,9 +12,24 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import model.Board;
+import model.Card;
+import model.Deck;
+import model.Noble;
+import model.Player;
+import model.Token;
 
 public class GameServer {
     private final int port;
+
+    //retrieving points from config.properties
+    private static final int WIN_SCORE = GameConfig.getWinningPoints();
+
+    //retrieving cards file path from config.properties
+    private static final String CARDS_FILEPATH = GameConfig.getCardFilePath();
+
+    //retrieving nobles file path from config.properties
+    private static final String NOBLES_FILEPATH = GameConfig.getNobleFilePath();
 
     public GameServer(int port) {
         this.port = port;
@@ -231,7 +241,15 @@ public class GameServer {
     }
     //it sets up a Splendor match.
     private Game createGame(String player1Name, String player2Name) throws IOException {
-        List<Card> allCards = CardLoader.loadCards("Splendor Cards.csv");
+        // load cards from CSV
+        List<Card> allCards = null;
+        try {
+            allCards = CardLoader.loadCards(CARDS_FILEPATH);
+        } catch (IOException e) {
+            System.err.println("Error: Could not load Splendor Cards.csv");
+            System.err.println("Make sure the file is in the same folder as the program.");
+            e.getStackTrace();
+        }
 
         List<Card> level1 = new ArrayList<>();
         List<Card> level2 = new ArrayList<>();
@@ -254,9 +272,23 @@ public class GameServer {
         d2.shuffle();
         d3.shuffle();
 
-        List<Noble> allNobles = CardLoader.createDefaultNobles();
+        // setup board with 3 nobles for a 2-player game
+        List<Noble> allNobles = new ArrayList<Noble>();
+
+        //load nobles from CSV
+        try {
+            allNobles = CardLoader.loadNobles(NOBLES_FILEPATH);
+        } catch (IOException e) {
+            System.err.println("Error: Could not load Nobles.csv");
+            System.err.println("Make sure the file is in the same folder as the program.");
+            e.printStackTrace();
+        }
+
+        //pull out 3 nobles for the board
         List<Noble> nobles = new ArrayList<>();
-        for (int i = 0; i < 3 && i < allNobles.size(); i++) {
+        //shuffle the existing nobles
+        Collections.shuffle(allNobles);
+        for (int i = 0; i < 3; i++) {
             nobles.add(allNobles.get(i));
         }
 

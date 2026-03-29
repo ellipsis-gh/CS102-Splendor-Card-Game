@@ -24,24 +24,10 @@ public class ClientMain {
 
         if (args.length > 0 && !args[0].isBlank()) {
             host = args[0].trim();
-            if (args.length > 1 && !args[1].isBlank()) {
-                try {
-                    port = Integer.parseInt(args[1].trim());
-                } catch (NumberFormatException ignored) {
-                }
-            }
             System.out.println("Connecting to " + host + ":" + port + "...");
         } else {
             System.out.print("Enter server IP: ");
             host = sc.nextLine().trim();
-            System.out.print("Enter port (default 5000): ");
-            String portText = sc.nextLine().trim();
-            if (!portText.isEmpty()) {
-                try {
-                    port = Integer.parseInt(portText);
-                } catch (NumberFormatException ignored) {
-                }
-            }
         }
 
         try (
