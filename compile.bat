@@ -1,3 +1,3 @@
 @echo off
-javac -d classes -cp src src\Main.java
+javac -d classes -cp src src\interfaces\*.java src\model\*.java src\Main.java
 echo Compilation successful
