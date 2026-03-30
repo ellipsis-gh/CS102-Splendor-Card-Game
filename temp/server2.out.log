@@ -1,0 +1,10 @@
+Server started on port 55123
+Connect using one of these IPs:
+  localhost / 127.0.0.1 (this machine only)
+  172.28.176.1 (port 55123)
+  10.124.138.104 (port 55123)
+Clients: run run_client.bat and enter one of the IPs above
+Waiting for Player 1...
+Alice connected.
+Waiting for Player 2...
+Bob connected.
