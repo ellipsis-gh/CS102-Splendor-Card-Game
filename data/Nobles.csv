@@ -1,19 +1,19 @@
-PV;white;blue;green;red;black
-3;0;0;4;4;0
-3;3;0;0;3;3
-3;4;4;0;0;0
-3;4;0;0;0;4
-3;0;4;4;0;0
-3;0;3;3;3;0
-3;3;3;3;0;0
-3;0;0;0;4;4
-3;3;3;0;0;3
-3;0;0;3;3;3
-3;0;4;0;4;0
-3;0;3;3;0;3
-3;4;0;4;0;0
-3;0;0;4;0;4
-3;3;3;0;3;0
-3;0;3;0;3;3
-3;4;0;0;4;0
-3;0;0;4;0;4
+Name;PV;white;blue;green;red;black
+The Twins;3;0;0;4;4;0
+The Collector;3;3;0;0;3;3
+The Admirals;3;4;4;0;0;0
+The Black Baron;3;4;0;0;0;4
+The Green Court;3;0;4;4;0;0
+The Artisan;3;0;3;3;3;0
+The Council;3;3;3;3;0;0
+The Duelists;3;0;0;0;4;4
+The Architect;3;3;3;0;0;3
+The Triumvirate;3;0;0;3;3;3
+The Navigator;3;0;4;0;4;0
+The Patron;3;0;3;3;0;3
+The Emerald Crown;3;4;0;4;0;0
+The Shadow Court;3;0;0;4;0;4
+The Guildmaster;3;3;3;0;3;0
+The Blacksmith;3;0;3;0;3;3
+The Scarlet Order;3;4;0;0;4;0
+The Sapphire Seal;3;0;0;4;0;4

@@ -20,7 +20,7 @@ import util.ui.ConsoleUI;
 
 public class GameApp {
 
-    private static final int    WIN_SCORE       = GameConfig.getWinningPoints();
+    private static final int    DEFAULT_WIN_SCORE = GameConfig.getWinningPoints();
     private static final String CARDS_FILEPATH  = GameConfig.getCardFilePath();
     private static final String NOBLES_FILEPATH = GameConfig.getNobleFilePath();
 
@@ -96,18 +96,22 @@ public class GameApp {
     // -------------------------------------------------------------------------
 
     public static void runGameLoop(Game game, Scanner sc, ConsoleUI ui) {
+        runGameLoop(game, sc, ui, DEFAULT_WIN_SCORE);
+    }
+
+    public static void runGameLoop(Game game, Scanner sc, ConsoleUI ui, int winScore) {
         System.out.println();
         printLine("=", 52);
         System.out.println("           S P L E N D O R");
         System.out.println("      Collect gems. Buy cards. Win!");
         printLine("=", 52);
         System.out.println();
-        System.out.printf("  Goal: First to %d prestige points wins!%n%n", WIN_SCORE);
+        System.out.printf("  Goal: First to %d prestige points wins!%n%n", winScore);
 
         while (!game.isGameOver()) {
             Player p = game.getCurrentPlayer();
 
-            ui.displayGameState(game, WIN_SCORE);
+            ui.displayGameState(game, winScore);
 
             System.out.println();
             printLine("-", 52);
@@ -134,7 +138,7 @@ public class GameApp {
                             ui.displayReservedCards(p);
                             System.out.print("(Press Enter to return) ");
                             readLine(sc);
-                            ui.displayGameState(game, WIN_SCORE);
+                            ui.displayGameState(game, winScore);
                         }
                         default -> System.out.println("Invalid choice. Enter 1, 2, 3, R, or Q.");
                     }
@@ -154,7 +158,7 @@ public class GameApp {
 
                 checkNobleVisit(game, p);
 
-                if (!game.isEndTriggered() && p.getScore() >= WIN_SCORE) {
+                if (!game.isEndTriggered() && p.getScore() >= winScore) {
                     System.out.println();
                     System.out.println("*** " + p.getName() + " has reached " + p.getScore()
                             + " points! The final round will now finish. ***");

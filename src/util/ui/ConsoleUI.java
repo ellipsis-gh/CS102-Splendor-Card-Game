@@ -25,6 +25,8 @@ public class ConsoleUI {
     private static final int MIN_PLAYERS = 2;
     private static final int MAX_PLAYERS = 4;
     private static final int MAX_RESERVED = 3;
+    private static final int MIN_WIN_SCORE = 1;
+    private static final int MAX_WIN_SCORE = 99;
 
     private static final String ESC   = "\u001B[";
     private static final String RESET = ESC + "0m";
@@ -40,9 +42,9 @@ public class ConsoleUI {
     private static final String BR = "┘";
     private static final String VB = "│";
 
-    private static final int CARD_BOX_WIDTH   = 30;  // 4 per row in the market (inner=28 fits longest costs)
+    private static final int CARD_BOX_WIDTH   = 30;  // 4 per row in the market; slightly wider to avoid truncation
     private static final int NOBLE_BOX_WIDTH  = 34;  // inner=32 fits "Needs: Blk3 Blu3 Grn3 Red3 Wht3"
-    private static final int PLAYER_BOX_WIDTH = 40;  // inner=38 fits full token/bonus rows
+    private static final int PLAYER_BOX_WIDTH = 54;  // bigger + clearer labels in player profile
 
     private static final Token[] COST_ORDER = {
             Token.BLACK, Token.BLUE, Token.GREEN, Token.RED, Token.WHITE
@@ -83,20 +85,28 @@ public class ConsoleUI {
 
         // ── Header ───────────────────────────────────────────────────────────
         out.append(bold("SPLENDOR", ansi))
-           .append(dim("  (" + players.size() + " players)", ansi)).append('\n');
-        out.append('\n');
+           .append(dim("  (" + players.size() + " players)", ansi))
+           .append(dim("  - first to " + winScore + " pts", ansi))
+           .append('\n');
+        out.append(dim("Legend: ", ansi))
+           .append(colorizeToken(Token.BLACK, "Blk", ansi)).append(' ')
+           .append(colorizeToken(Token.BLUE, "Blu", ansi)).append(' ')
+           .append(colorizeToken(Token.GREEN, "Grn", ansi)).append(' ')
+           .append(colorizeToken(Token.RED, "Red", ansi)).append(' ')
+           .append(colorizeToken(Token.WHITE, "Wht", ansi)).append(' ')
+           .append(colorizeToken(Token.GOLD, "Gld", ansi))
+           .append('\n');
 
         // ── Player profile boxes ──────────────────────────────────────────────
         List<List<String>> playerBoxes = new ArrayList<>();
         for (int i = 0; i < players.size(); i++) {
             playerBoxes.add(renderPlayerBox(i, players.get(i), i == currentIndex, winScore, ansi));
         }
-        out.append(joinBoxesSideBySide(playerBoxes));
+        out.append(renderBoxesGrid(playerBoxes, players.size() <= 2 ? players.size() : 2));
         out.append('\n');
 
         // ── Bank ──────────────────────────────────────────────────────────────
         out.append("Bank:  ").append(formatTokenMap(board.getAvailableTokens(), true, ansi)).append('\n');
-        out.append('\n');
 
         // ── Nobles as boxes ───────────────────────────────────────────────────
         out.append(bold("Nobles", ansi)).append('\n');
@@ -108,7 +118,7 @@ public class ConsoleUI {
             for (int i = 0; i < nobles.size(); i++) {
                 nobleBoxes.add(renderNobleBox(i, nobles.get(i), current, ansi));
             }
-            out.append(joinBoxesSideBySide(nobleBoxes));
+            out.append(renderBoxesGrid(nobleBoxes, nobles.size() <= 3 ? nobles.size() : 3));
         }
         out.append('\n');
 
@@ -171,6 +181,26 @@ public class ConsoleUI {
     // Setup prompts
     // -------------------------------------------------------------------------
 
+    public int getWinningPoints(int defaultWinScore) {
+        clearScreen();
+        System.out.println(bold("S P L E N D O R"));
+        System.out.println(dim("Press Enter to accept defaults."));
+        System.out.println();
+
+        while (true) {
+            System.out.printf("Points to win (%d-%d) [%d]: ", MIN_WIN_SCORE, MAX_WIN_SCORE, defaultWinScore);
+            String line = readLine();
+            if (line == null) return defaultWinScore;
+            line = line.trim();
+            if (line.isEmpty()) return defaultWinScore;
+            try {
+                int n = Integer.parseInt(line);
+                if (n >= MIN_WIN_SCORE && n <= MAX_WIN_SCORE) return n;
+            } catch (NumberFormatException ignored) { }
+            System.out.printf("Please enter a number between %d and %d.%n", MIN_WIN_SCORE, MAX_WIN_SCORE);
+        }
+    }
+
     public int getNumberOfPlayers() {
         while (true) {
             System.out.printf("How many players? (%d-%d): ", MIN_PLAYERS, MAX_PLAYERS);
@@ -208,54 +238,42 @@ public class ConsoleUI {
     private static List<String> renderPlayerBox(int index, Player player,
                                                 boolean isCurrent, int winScore, boolean ansi) {
         int inner = PLAYER_BOX_WIDTH - 2;
-        String h  = H.repeat(inner);
 
-        // current player gets a gold border; others get the default box color
-        String top, bottom;
-        if (ansi && isCurrent) {
-            String gold = ESC + "33m";
-            top    = gold + TL + h + TR + RESET;
-            bottom = gold + BL + h + BR + RESET;
-        } else {
-            top    = TL + h + TR;
-            bottom = BL + h + BR;
-        }
+        // uniform border colour: keep all player borders the same; highlight current player via marker/text
+        String borderColor = ansi ? BOLD : null;
+        String top    = borderTop(inner, borderColor, ansi);
+        String bottom = borderBottom(inner, borderColor, ansi);
+        String lb     = borderLeft(borderColor, ansi);
+        String rb     = borderRight(borderColor, ansi);
 
         List<String> lines = new ArrayList<>();
         lines.add(top);
 
         // ── name row: bold for current player, <== marker flush right ─────────
         String type      = player.isHuman() ? "Human" : "AI";
-        String nameLabel = bold("P" + (index + 1) + " [" + type + "] " + player.getName(), ansi && isCurrent);
-        String marker    = isCurrent ? bold("<==", ansi) : "";
-        int nameVis   = visLen(nameLabel);
-        int markerVis = visLen(marker);
-        int gap       = inner - nameVis - markerVis;
-        lines.add(VB + nameLabel + " ".repeat(Math.max(1, gap)) + marker + VB);
+        String nameLabel = "P" + (index + 1) + " [" + type + "] " + player.getName();
+        if (isCurrent) nameLabel = bold(nameLabel, ansi);
+        String marker = isCurrent ? bold("<==", ansi) : "";
+        lines.add(lb + fitLine(rightMarkerLine(nameLabel, marker, inner), inner) + rb);
 
         // ── thin separator ────────────────────────────────────────────────────
-        lines.add(VB + H.repeat(inner) + VB);
+        // (separator removed for compact layout)
 
         // ── score row ─────────────────────────────────────────────────────────
-        int toWin       = Math.max(0, winScore - player.getScore());
-        String scoreLine = "Score:   " + player.getScore() + " pts  (" + toWin + " to win)";
-        lines.add(VB + padRight(scoreLine, inner) + VB);
+        int toWin = Math.max(0, winScore - player.getScore());
+        lines.add(lb + fitLine("Score: " + player.getScore() + "/" + winScore + "   Left: " + toWin, inner) + rb);
+        lines.add(lb + fitLine("Reserved: " + player.getHand().size() + "/" + MAX_RESERVED
+                + "   Bought: " + player.getPurchasedCards().size()
+                + "   Nobles: " + player.getNobles().size(), inner) + rb);
 
         // ── tokens row ────────────────────────────────────────────────────────
-        String tokLabel = "Tokens:  ";
-        String tokVals  = formatTokenMap(player.getTokens(), true, ansi);
-        lines.add(VB + padRight(tokLabel + tokVals, inner) + VB);
+        lines.add(lb + fitLine("Tokens:  " + formatTokenMapFixed(player.getTokens(), true, ansi), inner) + rb);
 
         // ── bonuses row ───────────────────────────────────────────────────────
-        String bonLabel = "Bonuses: ";
-        String bonVals  = formatTokenMap(player.getBonuses(), false, ansi);
-        lines.add(VB + padRight(bonLabel + bonVals, inner) + VB);
+        lines.add(lb + fitLine("Bonuses: " + formatTokenMapFixed(player.getBonuses(), false, ansi), inner) + rb);
 
         // ── stats row ─────────────────────────────────────────────────────────
-        String stats = "Rsv: " + player.getHand().size() + "/3"
-                     + "   Bought: " + player.getPurchasedCards().size()
-                     + "   Nobles: " + player.getNobles().size();
-        lines.add(VB + padRight(stats, inner) + VB);
+        // (stats merged into score line)
 
         lines.add(bottom);
         return lines;
@@ -267,20 +285,19 @@ public class ConsoleUI {
 
     private static List<String> renderNobleBox(int index, Noble noble, Player currentPlayer, boolean ansi) {
         int inner = NOBLE_BOX_WIDTH - 2;
-        String h  = H.repeat(inner);
         List<String> lines = new ArrayList<>();
-        lines.add(TL + h + TR);
+        lines.add(borderTop(inner, null, ansi));
+        String lb = borderLeft(null, ansi);
+        String rb = borderRight(null, ansi);
 
         // header: index left, pts right-aligned bold
-        String idStr  = "[N" + index + "]";
-        String ptsStr = noble.getPrestigePoints() + " pts";
-        int gap       = inner - idStr.length() - ptsStr.length();
-        String headerLine = idStr + " ".repeat(Math.max(1, gap)) + bold(ptsStr, ansi);
-        lines.add(VB + padRight(headerLine, inner) + VB);
+        String idStr  = "[N" + index + "] " + noble.getName();
+        String ptsStr = bold(noble.getPrestigePoints() + " pts", ansi);
+        lines.add(lb + fitLine(rightMarkerLine(idStr, ptsStr, inner), inner) + rb);
 
         // requirements
         String needs = "Needs: " + formatCostCompactStatic(noble.getCost());
-        lines.add(VB + padRight(truncate(needs, inner), inner) + VB);
+        lines.add(lb + fitLine(needs, inner) + rb);
 
         // current player's progress toward this noble
         Map<Token, Integer> bonuses = currentPlayer.getBonuses();
@@ -294,9 +311,9 @@ public class ConsoleUI {
             }
         }
         String progressLine = ready ? bold("*** READY! ***", ansi) : progressSb.toString().trim();
-        lines.add(VB + padRight(progressLine, inner) + VB);
+        lines.add(lb + fitLine(progressLine, inner) + rb);
 
-        lines.add(BL + h + BR);
+        lines.add(borderBottom(inner, null, ansi));
         return lines;
     }
 
@@ -304,56 +321,122 @@ public class ConsoleUI {
     // Card boxes
     // -------------------------------------------------------------------------
 
-    private static String buildMarketRowString(int level, Card[] row, boolean ansi) {
-        List<List<String>> boxes = new ArrayList<>();
-        for (int slot = 0; slot < row.length; slot++) {
-            boxes.add(renderCardBox("[" + level + "-" + slot + "]", row[slot], ansi));
-        }
-        return joinBoxesSideBySide(boxes);
+    private static List<String> computeWrappedCostChunks(Card card, int inner, boolean ansi) {
+        if (card == null) return List.of();
+        String prefix = "Bon " + gemChip(card.getBonus(), ansi) + "  Cost ";
+        int prefixVis = visLen(prefix);
+        int costWidth = Math.max(6, inner - prefixVis);
+        List<String> chunks = wrapBySpaces(formatCostCompactStatic(card.getCost()), costWidth);
+        return chunks.isEmpty() ? List.of("-") : chunks;
     }
 
-    private static List<String> renderCardBox(String id, Card card, boolean ansi) {
-        int inner = CARD_BOX_WIDTH - 2;
-        String h  = H.repeat(inner);
+    private static List<String> wrapBySpaces(String text, int width) {
+        if (text == null) return List.of();
+        String trimmed = text.trim();
+        if (trimmed.isEmpty()) return List.of();
+        int w = Math.max(1, width);
 
-        // border colored by the card's gem bonus
-        String top, bottom;
-        if (ansi && card != null && card.getBonus() != null) {
-            String bc = gemBorderColor(card.getBonus());
-            top    = bc + TL + h + TR + RESET;
-            bottom = bc + BL + h + BR + RESET;
-        } else {
-            top    = TL + h + TR;
-            bottom = BL + h + BR;
+        String[] words = trimmed.split("\\s+");
+        List<String> lines = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+
+            if (current.length() == 0) {
+                if (word.length() <= w) {
+                    current.append(word);
+                } else {
+                    int idx = 0;
+                    while (idx < word.length()) {
+                        int end = Math.min(word.length(), idx + w);
+                        lines.add(word.substring(idx, end));
+                        idx = end;
+                    }
+                }
+                continue;
+            }
+
+            if (current.length() + 1 + word.length() <= w) {
+                current.append(' ').append(word);
+            } else {
+                lines.add(current.toString());
+                current.setLength(0);
+                if (word.length() <= w) {
+                    current.append(word);
+                } else {
+                    int idx = 0;
+                    while (idx < word.length()) {
+                        int end = Math.min(word.length(), idx + w);
+                        lines.add(word.substring(idx, end));
+                        idx = end;
+                    }
+                }
+            }
         }
+
+        if (current.length() > 0) lines.add(current.toString());
+        return lines;
+    }
+
+    private static String buildMarketRowString(int level, Card[] row, boolean ansi) {
+        List<List<String>> boxes = new ArrayList<>();
+
+        int inner = CARD_BOX_WIDTH - 2;
+        int maxCostLines = 1;
+        List<List<String>> perCardCostChunks = new ArrayList<>();
+        for (int slot = 0; slot < row.length; slot++) {
+            Card card = row[slot];
+            List<String> chunks = (card == null) ? List.of() : computeWrappedCostChunks(card, inner, ansi);
+            perCardCostChunks.add(chunks);
+            maxCostLines = Math.max(maxCostLines, Math.max(1, chunks.size()));
+        }
+
+        for (int slot = 0; slot < row.length; slot++) {
+            boxes.add(renderCardBox("[" + level + "-" + slot + "]", row[slot], ansi, perCardCostChunks.get(slot), maxCostLines));
+        }
+        String out = joinBoxesSideBySide(boxes);
+        return out.endsWith("\n") ? out.substring(0, out.length() - 1) : out;
+    }
+
+    private static List<String> renderCardBox(String id, Card card, boolean ansi, List<String> costChunks, int maxCostLines) {
+        int inner = CARD_BOX_WIDTH - 2;
+
+        // border colored by the card's gem bonus (apply to all border segments)
+        String bc = (ansi && card != null && card.getBonus() != null) ? gemBorderColor(card.getBonus()) : null;
+        String top    = borderTop(inner, bc, ansi);
+        String bottom = borderBottom(inner, bc, ansi);
+        String lb     = borderLeft(bc, ansi);
+        String rb     = borderRight(bc, ansi);
 
         List<String> lines = new ArrayList<>();
         lines.add(top);
 
         if (card == null) {
-            lines.add(VB + padRight(id, inner) + VB);
-            lines.add(VB + padRight("(empty)", inner) + VB);
-            lines.add(VB + padRight("", inner) + VB);
-            lines.add(VB + padRight("", inner) + VB);
+            lines.add(lb + fitLine(id, inner) + rb);
+            lines.add(lb + fitLine("(empty)", inner) + rb);
+            for (int i = 1; i < Math.max(1, maxCostLines); i++) {
+                lines.add(lb + fitLine("", inner) + rb);
+            }
             lines.add(bottom);
             return lines;
         }
 
         // header: id left, prestige pts right-aligned bold
-        String ptsStr   = bold(card.getPrestigePoints() + " pts", ansi);
-        int headerGap   = inner - id.length() - (card.getPrestigePoints() + " pts").length();
-        String headerLine = id + " ".repeat(Math.max(1, headerGap)) + ptsStr;
-        lines.add(VB + padRight(headerLine, inner) + VB);
+        String ptsStr = bold(card.getPrestigePoints() + " pts", ansi);
+        lines.add(lb + fitLine(rightMarkerLine(id, ptsStr, inner), inner) + rb);
 
         // bonus: background-coloured chip — always visible regardless of terminal theme
-        String bonusLine = "Bonus: " + gemChip(card.getBonus(), ansi);
-        lines.add(VB + padRight(bonusLine, inner) + VB);
+        String prefix = "Bon " + gemChip(card.getBonus(), ansi) + "  Cost ";
+        int prefixVis = visLen(prefix);
+        List<String> safeChunks = (costChunks == null || costChunks.isEmpty()) ? List.of("-") : costChunks;
 
-        // cost: plain text (no ANSI)
-        String costLine = "Cost: " + formatCostCompactStatic(card.getCost());
-        lines.add(VB + padRight(truncate(costLine, inner), inner) + VB);
-
-        lines.add(VB + padRight("", inner) + VB);
+        lines.add(lb + fitLine(prefix + safeChunks.get(0), inner) + rb);
+        String indent = " ".repeat(prefixVis);
+        for (int i = 1; i < Math.max(1, maxCostLines); i++) {
+            String chunk = (i < safeChunks.size()) ? safeChunks.get(i) : "";
+            lines.add(lb + fitLine(indent + chunk, inner) + rb);
+        }
         lines.add(bottom);
         return lines;
     }
@@ -399,6 +482,21 @@ public class ConsoleUI {
                 row.append(normalized.get(b).get(i));
             }
             sb.append(row).append('\n');
+        }
+        return sb.toString();
+    }
+
+    private static String renderBoxesGrid(List<List<String>> boxes, int columns) {
+        if (boxes == null || boxes.isEmpty()) return "";
+        int cols = Math.max(1, columns);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < boxes.size(); i += cols) {
+            int end = Math.min(boxes.size(), i + cols);
+            if (sb.length() > 0) sb.append('\n');
+            String block = joinBoxesSideBySide(boxes.subList(i, end));
+            // joinBoxesSideBySide currently ends with a newline; drop it to keep the layout compact
+            if (block.endsWith("\n")) block = block.substring(0, block.length() - 1);
+            sb.append(block);
         }
         return sb.toString();
     }
@@ -452,6 +550,42 @@ public class ConsoleUI {
         return sb.toString().trim();
     }
 
+    /**
+     * Fixed-width token formatter used inside player boxes so counts never push borders.
+     * Always prints all colours in a stable order, with 2-digit counts (00-99).
+     */
+    private static String formatTokenMapFixed(Map<Token, Integer> map, boolean includeGold, boolean ansi) {
+        Map<Token, Integer> safe = (map == null) ? new EnumMap<>(Token.class) : map;
+        StringBuilder sb = new StringBuilder();
+
+        for (Token t : COST_ORDER) {
+            int v = Math.min(99, safe.getOrDefault(t, 0));
+            sb.append(colorizeToken(t, tokenShortLabel(t), ansi))
+              .append(String.format("%02d", v))
+              .append(' ');
+        }
+        if (includeGold) {
+            int g = Math.min(99, safe.getOrDefault(Token.GOLD, 0));
+            sb.append(colorizeToken(Token.GOLD, tokenShortLabel(Token.GOLD), ansi))
+              .append(String.format("%02d", g));
+        } else if (!sb.isEmpty()) {
+            sb.setLength(sb.length() - 1); // drop trailing space
+        }
+        return sb.toString().trim();
+    }
+
+    private static String tokenShortLabel(Token token) {
+        if (token == null) return "?";
+        return switch (token) {
+            case BLACK -> "Blk";
+            case BLUE  -> "Blu";
+            case GREEN -> "Grn";
+            case RED   -> "Red";
+            case WHITE -> "Wht";
+            case GOLD  -> "Gld";
+        };
+    }
+
     private static String tokenLabel(Token token) {
         if (token == null) return "(none)";
         return switch (token) {
@@ -498,9 +632,9 @@ public class ConsoleUI {
     private static String gemBorderColor(Token token) {
         return switch (token) {
             case GREEN -> ESC + "1;32m";       // bold green
-            case WHITE -> ESC + "47;30m";      // white bg + black fg — visible on any terminal
+            case WHITE -> ESC + "1;37m";       // bold white (less overpowering than a white background)
             case BLUE  -> ESC + "1;34m";       // bold blue
-            case BLACK -> ESC + "40;97m";      // black bg + bright-white fg — visible on any terminal
+            case BLACK -> ESC + "1;90m";       // bright black/gray (no background fill)
             case RED   -> ESC + "1;31m";       // bold red
             case GOLD  -> ESC + "1;33m";       // bold yellow
         };
@@ -551,6 +685,50 @@ public class ConsoleUI {
         return s.substring(0, width - 1) + "…";
     }
 
+    /** Fits s to exactly width visible chars (ANSI-aware): truncate if needed, then pad right. */
+    private static String fitLine(String s, int width) {
+        if (width <= 0) return "";
+        String truncated = truncateVisible(s == null ? "" : s, width);
+        int vis = visLen(truncated);
+        if (vis < width) truncated = truncated + " ".repeat(width - vis);
+        return truncated;
+    }
+
+    /** Truncates s to at most width visible chars (ANSI-aware), appending "..." if cut. */
+    private static String truncateVisible(String s, int width) {
+        String safe = (s == null) ? "" : s;
+        if (visLen(safe) <= width) return safe;
+        if (width <= 3) return ".".repeat(Math.max(0, width));
+
+        StringBuilder sb = new StringBuilder();
+        int vis = 0;
+        int target = width - 3; // reserve space for "..."
+        for (int i = 0; i < safe.length() && vis < target; ) {
+            char c = safe.charAt(i);
+            if (c == '\u001B' && i + 1 < safe.length() && safe.charAt(i + 1) == '[') {
+                int m = safe.indexOf('m', i);
+                if (m < 0) break;
+                sb.append(safe, i, m + 1);
+                i = m + 1;
+                continue;
+            }
+            sb.append(c);
+            vis++;
+            i++;
+        }
+        sb.append("...");
+        if (safe.contains(ESC)) sb.append(RESET);
+        return sb.toString();
+    }
+
+    private static String rightMarkerLine(String left, String right, int innerWidth) {
+        String l = (left == null) ? "" : left;
+        String r = (right == null) ? "" : right;
+        int gap = innerWidth - visLen(l) - visLen(r);
+        if (gap < 1) return truncateVisible(l, innerWidth);
+        return l + " ".repeat(gap) + r;
+    }
+
     /** Strips ANSI escape sequences for length calculations. */
     private static String stripAnsi(String s) {
         return s.replaceAll("\u001B\\[[^m]*m", "");
@@ -568,6 +746,17 @@ public class ConsoleUI {
             if (v > 0) sb.append(tokenLabel(t)).append(v).append(" ");
         }
         return sb.toString().trim();
+    }
+
+    private static String formatCostTight(Map<Token, Integer> cost) {
+        if (cost == null || cost.isEmpty()) return "â€”";
+        StringBuilder sb = new StringBuilder();
+        for (Token t : COST_ORDER) {
+            int v = cost.getOrDefault(t, 0);
+            if (v > 0) sb.append(tokenShortLabel(t)).append(v).append(" ");
+        }
+        String out = sb.toString().trim();
+        return out.isEmpty() ? "â€”" : out;
     }
 
     private Map<Token, Integer> remainingAfterBonuses(Card card, Player player) {
@@ -588,6 +777,32 @@ public class ConsoleUI {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Border helpers (ANSI-aware)
+    // -------------------------------------------------------------------------
+
+    private static String borderTop(int innerWidth, String borderColor, boolean ansi) {
+        String h = H.repeat(Math.max(0, innerWidth));
+        if (!ansi || borderColor == null) return TL + h + TR;
+        return borderColor + TL + h + TR + RESET;
+    }
+
+    private static String borderBottom(int innerWidth, String borderColor, boolean ansi) {
+        String h = H.repeat(Math.max(0, innerWidth));
+        if (!ansi || borderColor == null) return BL + h + BR;
+        return borderColor + BL + h + BR + RESET;
+    }
+
+    private static String borderLeft(String borderColor, boolean ansi) {
+        if (!ansi || borderColor == null) return VB;
+        return borderColor + VB + RESET;
+    }
+
+    private static String borderRight(String borderColor, boolean ansi) {
+        if (!ansi || borderColor == null) return VB;
+        return borderColor + VB + RESET;
     }
 
     // -------------------------------------------------------------------------

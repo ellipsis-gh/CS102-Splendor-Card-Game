@@ -52,7 +52,10 @@ public class CardLoader {
         return cards;
     }
 
-    // reads all nobles from csv - expected format: pv,white,blue,green,red,black
+    // reads all nobles from csv - expected format (semicolon-delimited):
+    //   Name;PV;white;blue;green;red;black
+    // Backward-compatible with legacy:
+    //   PV;white;blue;green;red;black
     public static List<Noble> loadNobles(String path) throws IOException {
         List<Noble> nobles = new ArrayList<Noble>();
         Scanner in = null;
@@ -60,14 +63,20 @@ public class CardLoader {
         try {
             File input = new File(path);
             in = new Scanner(input);
-            // Skip first line with headers
-
-            in.nextLine();
+            // header row
+            String header = in.hasNextLine() ? in.nextLine() : "";
+            boolean hasName = header.trim().toLowerCase().startsWith("name;");
+            int autoIndex = 1;
             while (in.hasNextLine()) {
                 String line = in.nextLine();
    
                 Scanner lineSc = new Scanner(line);
                 lineSc.useDelimiter(";");
+
+                String name = null;
+                if (hasName) {
+                    name = lineSc.next();
+                }
 
                 int pv = Integer.parseInt(lineSc.next());
                 Map<Token, Integer> cost = new HashMap<>();
@@ -76,7 +85,13 @@ public class CardLoader {
                 cost.put(Token.GREEN, Integer.parseInt(lineSc.next()));
                 cost.put(Token.RED,   Integer.parseInt(lineSc.next()));
                 cost.put(Token.BLACK, Integer.parseInt(lineSc.next()));
-                nobles.add(new Noble(pv, cost));
+
+                if (hasName) {
+                    nobles.add(new Noble(name, pv, cost));
+                } else {
+                    nobles.add(new Noble("Noble " + autoIndex, pv, cost));
+                }
+                autoIndex++;
        
                 lineSc.close();
             }

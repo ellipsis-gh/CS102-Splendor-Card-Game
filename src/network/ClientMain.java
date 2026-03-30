@@ -26,9 +26,15 @@ public class ClientMain {
 
     // These are the five non-gold gem colors in display order
     private static final String[] GEM_NAMES = {"black", "blue", "green", "red", "white"};
+    private static final String[] GEM_ABBR  = {"Blk", "Blu", "Grn", "Red", "Wht"};
 
     // Last received state text — used by the input thread to build menus
     private static volatile String lastState = "";
+
+    private enum InputMode { NONE, NAME, TURN, RETURN }
+
+    private static final Object MODE_LOCK = new Object();
+    private static volatile InputMode mode = InputMode.NONE;
 
     public static void main(String[] args) {
         AnsiConsole.systemInstall();
@@ -84,9 +90,16 @@ public class ClientMain {
                             stateBuffer.append(line).append('\n');
                         } else {
                             System.out.println(line);
-                            // when it's our turn, show the numbered menu
-                            if (line.startsWith("--- YOUR TURN")) {
-                                System.out.flush();
+                            if (line.equalsIgnoreCase("Enter your name:")) {
+                                setMode(InputMode.NAME);
+                            } else if (line.startsWith("--- YOUR TURN")) {
+                                setMode(InputMode.TURN);
+                            } else if (line.startsWith("Invalid move")) {
+                                setMode(InputMode.TURN);
+                            } else if (line.startsWith("TOKEN LIMIT:")) {
+                                setMode(InputMode.RETURN);
+                            } else if (line.startsWith("Invalid return")) {
+                                setMode(InputMode.RETURN);
                             }
                         }
                     }
@@ -98,18 +111,50 @@ public class ClientMain {
             readerThread.start();
 
             // ── Input thread: presents numbered menus and translates to commands ──
-            while (sc.hasNextLine()) {
-                // Show the top-level action menu and read a choice
-                printActionMenu();
-                String input = sc.nextLine().trim().toLowerCase();
+            boolean running = true;
+            while (running) {
+                InputMode current = waitForMode();
+                switch (current) {
+                    case NAME -> {
+                        System.out.print("Name: ");
+                        if (!sc.hasNextLine()) { running = false; break; }
+                        String name = sc.nextLine().trim();
+                        out.println(name.isBlank() ? "Player" : name);
+                    }
+                    case TURN -> {
+                        while (true) {
+                            printActionMenu();
+                            if (!sc.hasNextLine()) { running = false; break; }
+                            String input = sc.nextLine().trim().toLowerCase();
 
-                String command = translateInput(input, sc);
-                if (command == null) continue; // cancelled or invalid — reprompt
+                            String command = translateInput(input, sc);
+                            if (command == null) continue; // cancelled/invalid — reprompt locally
 
-                out.println(command);
-
-                if ("QUIT".equalsIgnoreCase(command)) {
-                    break;
+                            out.println(command);
+                            if ("QUIT".equalsIgnoreCase(command)) running = false;
+                            break;
+                        }
+                    }
+                    case RETURN -> {
+                        while (true) {
+                            System.out.print("Return tokens (e.g. red 1) or Q: ");
+                            if (!sc.hasNextLine()) { running = false; break; }
+                            String line = sc.nextLine().trim();
+                            if (line.equalsIgnoreCase("q")) {
+                                out.println("QUIT");
+                                running = false;
+                                break;
+                            }
+                            String[] parts = line.split("\\s+");
+                            if (parts.length != 2) {
+                                System.out.println("Enter: <color> <count>");
+                                continue;
+                            }
+                            out.println("RETURN " + parts[0] + " " + parts[1]);
+                            break;
+                        }
+                    }
+                    case NONE -> running = false;
                 }
             }
 
@@ -310,17 +355,20 @@ public class ClientMain {
     private static List<String> parseAvailableGems(String state) {
         List<String> result = new ArrayList<>();
         for (String line : state.split("\n")) {
-            if (!line.startsWith("Bank:")) continue;
+            String clean = stripAnsi(line);
+            if (!clean.startsWith("Bank:")) continue;
             // Bank line looks like: "Bank:   Blk:3  Blu:4  Grn:2  ..."
-            for (String gem : GEM_NAMES) {
-                String abbr = gem.substring(0, 1).toUpperCase() + gem.substring(1, 3);
+            for (int i = 0; i < GEM_NAMES.length; i++) {
+                String gem  = GEM_NAMES[i];
+                String abbr = GEM_ABBR[i];
                 // match e.g. "Blk:3"
-                int idx = line.indexOf(abbr + ":");
+                int idx = clean.indexOf(abbr + ":");
                 if (idx < 0) continue;
                 try {
-                    int end   = line.indexOf(' ', idx + abbr.length() + 1);
-                    String ns = end < 0 ? line.substring(idx + abbr.length() + 1)
-                                        : line.substring(idx + abbr.length() + 1, end);
+                    int start = idx + abbr.length() + 1;
+                    int end   = clean.indexOf(' ', start);
+                    String ns = end < 0 ? clean.substring(start)
+                                        : clean.substring(start, end);
                     int count = Integer.parseInt(ns.trim());
                     if (count > 0) result.add(gem + " (" + count + " on board)");
                 } catch (NumberFormatException ignored) { }
@@ -366,5 +414,32 @@ public class ClientMain {
             return;
         }
         for (int i = 0; i < SCREEN_CLEAR_LINES; i++) System.out.println();
+    }
+
+    private static void setMode(InputMode newMode) {
+        synchronized (MODE_LOCK) {
+            mode = newMode;
+            MODE_LOCK.notifyAll();
+        }
+    }
+
+    private static InputMode waitForMode() {
+        synchronized (MODE_LOCK) {
+            while (mode == InputMode.NONE) {
+                try {
+                    MODE_LOCK.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return InputMode.NONE;
+                }
+            }
+            InputMode current = mode;
+            mode = InputMode.NONE;
+            return current;
+        }
+    }
+
+    private static String stripAnsi(String s) {
+        return s == null ? "" : s.replaceAll("\u001B\\[[^m]*m", "");
     }
 }

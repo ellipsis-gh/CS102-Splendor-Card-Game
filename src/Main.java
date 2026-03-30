@@ -3,6 +3,7 @@ import java.util.Scanner;
 
 import org.fusesource.jansi.AnsiConsole;
 
+import config.GameConfig;
 import logic.Game;
 import util.GameApp;
 import util.ui.ConsoleUI;
@@ -17,6 +18,8 @@ public class Main{
             Scanner sc = new Scanner(System.in);
             ConsoleUI ui = new ConsoleUI(sc);
 
+            int winScore = ui.getWinningPoints(GameConfig.getWinningPoints());
+
             // setup: get player count and which are AI
             int numPlayers = ui.getNumberOfPlayers();
             boolean[] isAI = ui.getPlayerTypes(numPlayers);
@@ -25,7 +28,7 @@ public class Main{
             Game game = GameApp.setupGame(numPlayers, isAI);
 
             // run the main loop using the same Scanner and UI
-            GameApp.runGameLoop(game, sc, ui);
+            GameApp.runGameLoop(game, sc, ui, winScore);
         
     }
 
