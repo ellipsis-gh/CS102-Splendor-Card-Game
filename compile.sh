@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-javac -encoding UTF-8 -d classes -sourcepath src src/Main.java
+CP="src:lib/jansi-2.4.1.jar"
+
+javac -encoding UTF-8 -d classes -cp "$CP" src/Main.java
 echo "Compilation successful"
