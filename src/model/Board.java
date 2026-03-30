@@ -29,13 +29,8 @@ public class Board implements IBoard {
 
     // setup tokens based on player count
     private void initializeTokens(int playerCount) {
-        int gemCount;
-        if (playerCount == 2)
-            gemCount = 4;
-        else if (playerCount == 3)
-            gemCount = 5;
-        else
-            gemCount = 7;
+
+        int gemCount = GameConfig.getInitialGems(playerCount);
 
         availableTokens.put(Token.GREEN, gemCount);
         availableTokens.put(Token.WHITE, gemCount);
