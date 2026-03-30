@@ -14,6 +14,20 @@ import model.Token;
 
 public class NetworkFormatter {
 
+    /**
+     * Marker line sent by the server before a full state dump.
+     * The client uses this to buffer the state and redraw it as one coherent screen.
+     */
+    public static final String STATE_BEGIN = "<<STATE_BEGIN>>";
+
+    /**
+     * Marker line sent by the server after a full state dump.
+     */
+    public static final String STATE_END = "<<STATE_END>>";
+
+    private NetworkFormatter() {
+    }
+
     public static String formatBoard(Board board) {
         StringBuilder sb = new StringBuilder();
 
