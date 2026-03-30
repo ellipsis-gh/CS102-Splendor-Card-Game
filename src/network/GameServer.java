@@ -115,7 +115,6 @@ public class GameServer {
 
                 broadcastState(game, client1, client2);
 
-                currentClient.send("EXAMPLE");
                 currentClient.send("YOUR TURN");
                 currentClient.send("Commands:");
                 currentClient.send("TAKE3 green blue red");
