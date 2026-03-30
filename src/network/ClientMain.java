@@ -16,13 +16,24 @@ import java.util.Scanner;
 // it stops when the player types QUIT or the connection closes
 
 public class ClientMain {
+    private static final int SCREEN_CLEAR_LINES = 60;
+    private static final String ANSI_CLEAR = "\u001B[2J\u001B[H";
+
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
 
         String host;
         int port = 5080;
 
-        if (args.length > 0 && !args[0].isBlank()) {
+        if (args.length >= 2) {
+            try {
+                port = Integer.parseInt(args[1].trim());
+            } catch (NumberFormatException ignored) {
+                // keep default
+            }
+        }
+
+        if (args.length >= 1 && !args[0].isBlank()) {
             host = args[0].trim();
             System.out.println("Connecting to " + host + ":" + port + "...");
         } else {
@@ -41,8 +52,32 @@ public class ClientMain {
             Thread readerThread = new Thread(() -> {
                 try {
                     String line;
+                    boolean inState = false;
+                    StringBuilder stateBuffer = new StringBuilder();
+
                     while ((line = in.readLine()) != null) {
-                        System.out.println(line);
+                        if (NetworkFormatter.STATE_BEGIN.equals(line)) {
+                            inState = true;
+                            stateBuffer.setLength(0);
+                            continue;
+                        }
+
+                        if (NetworkFormatter.STATE_END.equals(line)) {
+                            inState = false;
+                            clearScreen();
+                            System.out.print(stateBuffer);
+                            if (stateBuffer.length() > 0 && stateBuffer.charAt(stateBuffer.length() - 1) != '\n') {
+                                System.out.println();
+                            }
+                            System.out.flush();
+                            continue;
+                        }
+
+                        if (inState) {
+                            stateBuffer.append(line).append('\n');
+                        } else {
+                            System.out.println(line);
+                        }
                     }
                 } catch (IOException e) {
                     System.out.println("Disconnected from server.");
@@ -52,13 +87,20 @@ public class ClientMain {
             readerThread.setDaemon(true);
             readerThread.start();
 
-            while (true) {
+            while (sc.hasNextLine()) {
                 String input = sc.nextLine();
                 out.println(input);
 
                 if ("QUIT".equalsIgnoreCase(input.trim())) {
-                    break;
+                    return;
                 }
+            }
+
+            // If stdin closes (e.g., piped input), keep listening so state updates are still shown.
+            try {
+                readerThread.join();
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
             }
 
         } catch (IOException e) {
@@ -66,5 +108,27 @@ public class ClientMain {
         }
 
         sc.close();
+    }
+
+    private static void clearScreen() {
+        if (supportsAnsi()) {
+            System.out.print(ANSI_CLEAR);
+            return;
+        }
+        for (int i = 0; i < SCREEN_CLEAR_LINES; i++) {
+            System.out.println();
+        }
+    }
+
+    private static boolean supportsAnsi() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("win")) {
+            return System.getenv("WT_SESSION") != null
+                    || System.getenv("ANSICON") != null
+                    || "ON".equalsIgnoreCase(System.getenv("ConEmuANSI"))
+                    || System.getenv("TERM") != null;
+        }
+        String term = System.getenv("TERM");
+        return term != null && !term.equalsIgnoreCase("dumb");
     }
 }
