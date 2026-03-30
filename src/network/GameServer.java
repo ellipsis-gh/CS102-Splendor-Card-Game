@@ -103,8 +103,13 @@ public class GameServer {
         try {
             Game game = createGame(client1.getPlayerName(), client2.getPlayerName());
 
+            String hints = "Commands: TAKE3 <c> <c> <c>  |  TAKE2 <c>  |  BUY <lvl>-<slot>"
+                    + "  |  BUYR <idx>  |  RESERVE <lvl>-<slot>  |  RESERVEDECK <lvl>"
+                    + "  |  RETURN <c> <n>  |  QUIT";
             client1.send("Both players connected. Starting game...");
+            client1.send(hints);
             client2.send("Both players connected. Starting game...");
+            client2.send(hints);
 
             boolean gameOver = false;
 
@@ -115,18 +120,7 @@ public class GameServer {
 
                 broadcastState(game, client1, client2);
 
-                currentClient.send("EXAMPLE");
-                currentClient.send("YOUR TURN");
-                currentClient.send("Commands:");
-                currentClient.send("TAKE3 green blue red");
-                currentClient.send("TAKE2 red");
-                currentClient.send("BUY 1-0");
-                currentClient.send("BUYR 0");
-                currentClient.send("RESERVE 1-0");
-                currentClient.send("RESERVEDECK 1");
-                currentClient.send("RETURN red 1   (only when over token limit)");
-                currentClient.send("QUIT");
-
+                currentClient.send("--- YOUR TURN: " + current.getName() + " ---");
                 otherClient.send("WAITING FOR " + current.getName());
 
                 boolean validMove = false;
@@ -164,7 +158,7 @@ public class GameServer {
                     otherClient.send(current.getName() + " received a noble.");
                 }
 
-                if (current.getScore() >= 15) {
+                if (current.getScore() >= WIN_SCORE) {
                     broadcastState(game, client1, client2);
                     client1.send("WINNER: " + current.getName());
                     client2.send("WINNER: " + current.getName());
@@ -223,7 +217,7 @@ public class GameServer {
     }
     //it print the current board and players info, then sends the same state to both clients.
     private void broadcastState(Game game, ClientHandler c1, ClientHandler c2) {
-        String stateText = NetworkFormatter.formatGameState(game);
+        String stateText = NetworkFormatter.formatGameState(game, WIN_SCORE);
 
         sendState(c1, stateText);
         sendState(c2, stateText);

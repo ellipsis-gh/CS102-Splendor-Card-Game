@@ -24,8 +24,16 @@ public class NetworkFormatter {
 
     /**
      * Full board view matching the local client; includes ANSI colours for gem labels.
+     *
+     * @param game    current game state
+     * @param winScore prestige points needed to win
      */
+    public static String formatGameState(Game game, int winScore) {
+        return ConsoleUI.renderGameStateString(game, true, winScore);
+    }
+
+    /** Backward-compatible overload — assumes default win score of 10. */
     public static String formatGameState(Game game) {
-        return ConsoleUI.renderGameStateString(game, true);
+        return formatGameState(game, 10);
     }
 }

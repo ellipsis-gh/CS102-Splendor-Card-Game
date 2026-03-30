@@ -139,4 +139,12 @@ public class Board implements IBoard {
         if (level == 3) return !deck3.isEmpty();
         return false;
     }
+
+    // how many cards remain in a deck — used by the UI to show deck sizes
+    public int getDeckRemainingCount(int level) {
+        if (level == 1) return deck1.getRemainingCount();
+        if (level == 2) return deck2.getRemainingCount();
+        if (level == 3) return deck3.getRemainingCount();
+        return 0;
+    }
 }
