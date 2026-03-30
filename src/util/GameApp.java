@@ -40,7 +40,13 @@ public class GameApp {
 
     //gang..don't need to throw exception again if we already caught everything...
 
-    public static Game setupGame(int numPlayers, boolean[] isAI){
+    public static Game setupGame(int numPlayers, boolean[] isAI) {
+    return setupGame(numPlayers, isAI, null);
+    }
+
+
+    public static Game setupGame(int numPlayers, boolean[] isAI, String[] playerNames)
+{
 
         // load cards from CSV
         List<Card> allCards = new ArrayList<Card>();
@@ -111,11 +117,17 @@ public class GameApp {
         //create a list of players 
         List<Player> players = new ArrayList<>();
         for (int i = 0; i < numPlayers; i++) {
-            if (isAI[i]) {
-                players.add(new Player("AI: " + (i+1), false));
+            String name;
+            if (playerNames != null && i < playerNames.length && playerNames[i] != null && !playerNames[i].isBlank()) {
+                name = playerNames[i];
+            } else if (isAI[i]) {
+                name = "AI: " + (i + 1);
             } else {
-                players.add(new Player("Player: " + (i+1), true));
+                name = "Player: " + (i + 1);
             }
+
+            players.add(new Player(name, !isAI[i]));
+
         }
 
         return new Game(board, players);

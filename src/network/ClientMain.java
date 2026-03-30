@@ -20,7 +20,7 @@ public class ClientMain {
         Scanner sc = new Scanner(System.in);
 
         String host;
-        int port = 5000;
+        int port = 5080;
 
         if (args.length > 0 && !args[0].isBlank()) {
             host = args[0].trim();

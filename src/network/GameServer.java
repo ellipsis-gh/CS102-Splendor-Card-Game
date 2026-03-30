@@ -1,23 +1,18 @@
 package network;
 
-import config.GameConfig;
-import game.CardLoader;
-import logic.Game;
-
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import model.Board;
-import model.Card;
-import model.Deck;
-import model.Noble;
+
+import config.GameConfig;
+import logic.Game;
 import model.Player;
 import model.Token;
+import util.GameApp;
 
 public class GameServer {
     private final int port;
@@ -240,66 +235,74 @@ public class GameServer {
         c2.send(p2Text);
     }
     //it sets up a Splendor match.
-    private Game createGame(String player1Name, String player2Name) throws IOException {
-        // load cards from CSV
-        List<Card> allCards = null;
-        try {
-            allCards = CardLoader.loadCards(CARDS_FILEPATH);
-        } catch (IOException e) {
-            System.err.println("Error: Could not load Splendor Cards.csv");
-            System.err.println("Make sure the file is in the same folder as the program.");
-            e.getStackTrace();
-        }
+    // private Game createGame(String player1Name, String player2Name) throws IOException {
+    //     // load cards from CSV
+    //     List<Card> allCards = null;
+    //     try {
+    //         allCards = CardLoader.loadCards(CARDS_FILEPATH);
+    //     } catch (IOException e) {
+    //         System.err.println("Error: Could not load Splendor Cards.csv");
+    //         System.err.println("Make sure the file is in the same folder as the program.");
+    //         e.getStackTrace();
+    //     }
 
-        List<Card> level1 = new ArrayList<>();
-        List<Card> level2 = new ArrayList<>();
-        List<Card> level3 = new ArrayList<>();
+    //     List<Card> level1 = new ArrayList<>();
+    //     List<Card> level2 = new ArrayList<>();
+    //     List<Card> level3 = new ArrayList<>();
 
-        for (Card c : allCards) {
-            if (c.getLevel() == 1) {
-                level1.add(c);
-            } else if (c.getLevel() == 2) {
-                level2.add(c);
-            } else {
-                level3.add(c);
-            }
-        }
+    //     for (Card c : allCards) {
+    //         if (c.getLevel() == 1) {
+    //             level1.add(c);
+    //         } else if (c.getLevel() == 2) {
+    //             level2.add(c);
+    //         } else {
+    //             level3.add(c);
+    //         }
+    //     }
 
-        Deck d1 = new Deck(1, level1);
-        Deck d2 = new Deck(2, level2);
-        Deck d3 = new Deck(3, level3);
-        d1.shuffle();
-        d2.shuffle();
-        d3.shuffle();
+    //     Deck d1 = new Deck(1, level1);
+    //     Deck d2 = new Deck(2, level2);
+    //     Deck d3 = new Deck(3, level3);
+    //     d1.shuffle();
+    //     d2.shuffle();
+    //     d3.shuffle();
 
-        // setup board with 3 nobles for a 2-player game
-        List<Noble> allNobles = new ArrayList<Noble>();
+    //     // setup board with 3 nobles for a 2-player game
+    //     List<Noble> allNobles = new ArrayList<Noble>();
 
-        //load nobles from CSV
-        try {
-            allNobles = CardLoader.loadNobles(NOBLES_FILEPATH);
-        } catch (IOException e) {
-            System.err.println("Error: Could not load Nobles.csv");
-            System.err.println("Make sure the file is in the same folder as the program.");
-            e.printStackTrace();
-        }
+    //     //load nobles from CSV
+    //     try {
+    //         allNobles = CardLoader.loadNobles(NOBLES_FILEPATH);
+    //     } catch (IOException e) {
+    //         System.err.println("Error: Could not load Nobles.csv");
+    //         System.err.println("Make sure the file is in the same folder as the program.");
+    //         e.printStackTrace();
+    //     }
 
-        //pull out 3 nobles for the board
-        List<Noble> nobles = new ArrayList<>();
-        //shuffle the existing nobles
-        Collections.shuffle(allNobles);
-        for (int i = 0; i < 3; i++) {
-            nobles.add(allNobles.get(i));
-        }
+    //     //pull out 3 nobles for the board
+    //     List<Noble> nobles = new ArrayList<>();
+    //     //shuffle the existing nobles
+    //     Collections.shuffle(allNobles);
+    //     for (int i = 0; i < 3; i++) {
+    //         nobles.add(allNobles.get(i));
+    //     }
 
-        Board board = new Board(nobles, d1, d2, d3, 2);
+    //     Board board = new Board(nobles, d1, d2, d3, 2);
 
-        List<Player> players = new ArrayList<>();
-        players.add(new Player(player1Name, true));
-        players.add(new Player(player2Name, true));
+    //     List<Player> players = new ArrayList<>();
+    //     players.add(new Player(player1Name, true));
+    //     players.add(new Player(player2Name, true));
 
-        return new Game(board, players);
-    }
+    //     return new Game(board, players);
+    // }
+
+    private Game createGame(String player1Name, String player2Name) {
+    boolean[] isAI = {false, false};
+    String[] playerNames = {player1Name, player2Name};
+    return GameApp.setupGame(2, isAI, playerNames);
+}
+
+
     // it parses and executes the main turn commands entered by the player.
     private boolean handleCommand(Game game, Player p, String command, ClientHandler client) {
         String[] parts = command.split("\\s+");
