@@ -156,6 +156,7 @@ public class GameApp {
                     System.out.println("  2 = Take 2 same gems (need 4+ of that color)");
                     System.out.println("  3 = Buy a card");
                     System.out.println("  4 = Reserve a card");
+                    System.out.println("  r = View reserved cards");
                     System.out.println("  q = Quit game");
                     System.out.print("Your choice: ");
 
@@ -178,8 +179,13 @@ public class GameApp {
                         validAction = doBuyCard(game, p, sc);
                     } else if (input.equals("4")) {
                         validAction = doReserveCard(game, p, sc);
+                    } else if (input.equals("r")) {
+                        ui.displayReservedCards(p);
+                        System.out.print("(Press Enter to return) ");
+                        if (sc.hasNextLine()) sc.nextLine();
+                        ui.displayGameState(game);
                     } else {
-                        System.out.println("Invalid choice. Please enter 1, 2, 3, 4, or q.");
+                        System.out.println("Invalid choice. Please enter 1, 2, 3, 4, r, or q.");
                     }
                 }
             } else {

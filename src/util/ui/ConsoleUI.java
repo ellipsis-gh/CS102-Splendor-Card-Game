@@ -22,12 +22,16 @@ import model.Token;
 public class ConsoleUI {
     private static final int MIN_PLAYERS = 2;
     private static final int MAX_PLAYERS = 4;
+    private static final int MAX_RESERVED = 3;
 
     private static final String ESC = "\u001B[";
     private static final String RESET = ESC + "0m";
     private static final String BOLD = ESC + "1m";
     private static final String DIM = ESC + "2m";
     private static final String CLEAR = ESC + "2J" + ESC + "H";
+
+    private static final int CARD_BOX_WIDTH = 24;
+    private static final int CARD_BOX_HEIGHT = 6; // includes borders
 
     private static final Token[] COST_ORDER = {
             Token.BLACK, Token.BLUE, Token.GREEN, Token.RED, Token.WHITE
@@ -162,23 +166,26 @@ public class ConsoleUI {
             System.out.println();
         }
 
-        for (int level = 1; level <= 3; level++) {
+        System.out.println();
+        System.out.println(bold("Market"));
+        for (int level = 3; level >= 1; level--) {
+            System.out.println(dim("Level " + level));
+            printMarketRow(level, board.getVisibleCards(level));
             System.out.println();
-            System.out.println(bold("Level " + level));
-            Card[] row = board.getVisibleCards(level);
-            for (int s = 0; s < row.length; s++) {
-                Card c = row[s];
-                System.out.println("  [" + level + "-" + s + "] " + (c == null ? dim("(empty)") : formatCard(c)));
-            }
+        }
+
+        Player current = players.get(currentIndex);
+        if (current.isHuman() && !current.getHand().isEmpty()) {
+            System.out.println(dim("Tip: type 'r' during your turn to view reserved card details."));
         }
     }
 
     private String formatCard(Card c) {
-        return c.getPrestigePoints() + " pts  Bonus: " + tokenLabel(c.getBonus()) + "  Cost: " + formatCost(c.getCost());
+        return pointsLabel(c.getPrestigePoints()) + "  Bonus: " + tokenLabel(c.getBonus()) + "  Cost: " + formatCost(c.getCost());
     }
 
     private String formatNoble(Noble n) {
-        return n.getPrestigePoints() + " pts  Needs: " + formatCost(n.getCost());
+        return pointsLabel(n.getPrestigePoints()) + "  Needs: " + formatCost(n.getCost());
     }
 
     private String formatCost(Map<Token, Integer> cost) {
@@ -190,6 +197,36 @@ public class ConsoleUI {
             }
         }
         return sb.toString().trim();
+    }
+
+    /**
+     * Clears the screen and prints the current player's reserved cards with full details.
+     *
+     * @param player player whose reserved cards to show
+     */
+    public void displayReservedCards(Player player) {
+        Objects.requireNonNull(player, "player");
+        clearScreen();
+
+        System.out.println(bold("Reserved Cards") + dim("  (" + player.getHand().size() + "/" + MAX_RESERVED + ")"));
+        System.out.println("Player: " + player.getName());
+        System.out.println("Bonuses: " + formatTokenMap(player.getBonuses(), false));
+        System.out.println();
+
+        if (player.getHand().isEmpty()) {
+            System.out.println(dim("(none)"));
+            return;
+        }
+
+        for (int i = 0; i < player.getHand().size(); i++) {
+            Card c = player.getHand().get(i);
+            boolean affordable = player.canAffordCard(c);
+
+            System.out.println(bold("[r-" + i + "]") + " " + (affordable ? "" : dim("(not affordable yet) ")));
+            System.out.println("  " + formatCard(c));
+            System.out.println("  After bonuses: " + formatCostCompact(remainingAfterBonuses(c, player)));
+            System.out.println();
+        }
     }
 
     private String formatTokenMap(Map<Token, Integer> map, boolean includeGold) {
@@ -264,6 +301,94 @@ public class ConsoleUI {
 
         String term = System.getenv("TERM");
         return term != null && !term.equalsIgnoreCase("dumb");
+    }
+
+    private void printMarketRow(int level, Card[] row) {
+        List<List<String>> boxes = new java.util.ArrayList<>();
+        for (int slot = 0; slot < row.length; slot++) {
+            boxes.add(renderCardBox("[" + level + "-" + slot + "]", row[slot]));
+        }
+        printBoxesSideBySide(boxes);
+    }
+
+    private List<String> renderCardBox(String id, Card card) {
+        List<String> lines = new java.util.ArrayList<>(CARD_BOX_HEIGHT);
+        // ASCII borders render reliably across terminals (including IDE consoles).
+        String top = "+" + "-".repeat(CARD_BOX_WIDTH - 2) + "+";
+        String bottom = "+" + "-".repeat(CARD_BOX_WIDTH - 2) + "+";
+        lines.add(top);
+
+        if (card == null) {
+            lines.add(boxLine(padRight(id, CARD_BOX_WIDTH - 2)));
+            lines.add(boxLine(padRight("(empty)", CARD_BOX_WIDTH - 2)));
+            lines.add(boxLine(padRight("", CARD_BOX_WIDTH - 2)));
+            lines.add(boxLine(padRight("", CARD_BOX_WIDTH - 2)));
+            lines.add(bottom);
+            return lines;
+        }
+
+        String header = id + "  " + pointsLabel(card.getPrestigePoints());
+        String bonus = "Bonus: " + tokenLabel(card.getBonus());
+        String cost = "Cost: " + formatCostCompact(card.getCost());
+
+        lines.add(boxLine(padRight(truncate(header, CARD_BOX_WIDTH - 2), CARD_BOX_WIDTH - 2)));
+        lines.add(boxLine(padRight(truncate(bonus, CARD_BOX_WIDTH - 2), CARD_BOX_WIDTH - 2)));
+        lines.add(boxLine(padRight(truncate(cost, CARD_BOX_WIDTH - 2), CARD_BOX_WIDTH - 2)));
+        lines.add(boxLine(padRight("", CARD_BOX_WIDTH - 2)));
+        lines.add(bottom);
+        return lines;
+    }
+
+    private void printBoxesSideBySide(List<List<String>> boxes) {
+        int height = boxes.stream().mapToInt(List::size).min().orElse(0);
+        for (int i = 0; i < height; i++) {
+            StringBuilder row = new StringBuilder();
+            for (int b = 0; b < boxes.size(); b++) {
+                if (b > 0) row.append("  ");
+                row.append(boxes.get(b).get(i));
+            }
+            System.out.println(row);
+        }
+    }
+
+    private String boxLine(String content) {
+        return "|" + content + "|";
+    }
+
+    private String padRight(String s, int width) {
+        if (s.length() >= width) return s;
+        return s + " ".repeat(width - s.length());
+    }
+
+    private String truncate(String s, int width) {
+        if (s.length() <= width) return s;
+        if (width <= 1) return "…".substring(0, width);
+        return s.substring(0, width - 1) + "…";
+    }
+
+    private String pointsLabel(int points) {
+        return points + " pts";
+    }
+
+    private String formatCostCompact(Map<Token, Integer> cost) {
+        if (cost == null || cost.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (Token t : COST_ORDER) {
+            int v = cost.getOrDefault(t, 0);
+            if (v > 0) sb.append(tokenLabel(t)).append(v).append(" ");
+        }
+        return sb.toString().trim();
+    }
+
+    private Map<Token, Integer> remainingAfterBonuses(Card card, Player player) {
+        Map<Token, Integer> remaining = new EnumMap<>(Token.class);
+        Map<Token, Integer> cost = card.getCost();
+        Map<Token, Integer> bonuses = player.getBonuses();
+        for (Token t : COST_ORDER) {
+            int needed = Math.max(0, cost.getOrDefault(t, 0) - bonuses.getOrDefault(t, 0));
+            if (needed > 0) remaining.put(t, needed);
+        }
+        return remaining;
     }
 
     private String readLine() {
