@@ -1,4 +1,4 @@
 @echo off
-javac -d classes -cp src src\network\ServerMain.java
+javac -d classes -cp src src\interfaces\*.java src\model\*.java src\network\ServerMain.java
 java -cp classes network.ServerMain
 pause
