@@ -115,6 +115,7 @@ public class GameServer {
 
                 broadcastState(game, client1, client2);
 
+                currentClient.send("EXAMPLE");
                 currentClient.send("YOUR TURN");
                 currentClient.send("Commands:");
                 currentClient.send("TAKE3 green blue red");
@@ -222,21 +223,21 @@ public class GameServer {
     }
     //it print the current board and players info, then sends the same state to both clients.
     private void broadcastState(Game game, ClientHandler c1, ClientHandler c2) {
-        String boardText = NetworkFormatter.formatBoard(game.getBoard());
-        String p1Text = NetworkFormatter.formatPlayer(game.getPlayers().get(0));
-        String p2Text = NetworkFormatter.formatPlayer(game.getPlayers().get(1));
+        String stateText = NetworkFormatter.formatGameState(game);
 
-        sendState(c1, boardText, p1Text, p2Text);
-        sendState(c2, boardText, p1Text, p2Text);
+        sendState(c1, stateText);
+        sendState(c2, stateText);
     }
 
-    private void sendState(ClientHandler client, String boardText, String p1Text, String p2Text) {
+
+    private void sendState(ClientHandler client, String stateText) {
         client.send(NetworkFormatter.STATE_BEGIN);
-        sendMultiline(client, boardText);
-        sendMultiline(client, p1Text);
-        sendMultiline(client, p2Text);
+        for (String line : stateText.split("\n")) {
+            client.send(line);
+        }
         client.send(NetworkFormatter.STATE_END);
     }
+
 
     private void sendMultiline(ClientHandler client, String text) {
         if (text == null || text.isEmpty()) {
@@ -248,68 +249,8 @@ public class GameServer {
             client.send(line);
         }
     }
+    
     //it sets up a Splendor match.
-    // private Game createGame(String player1Name, String player2Name) throws IOException {
-    //     // load cards from CSV
-    //     List<Card> allCards = null;
-    //     try {
-    //         allCards = CardLoader.loadCards(CARDS_FILEPATH);
-    //     } catch (IOException e) {
-    //         System.err.println("Error: Could not load Splendor Cards.csv");
-    //         System.err.println("Make sure the file is in the same folder as the program.");
-    //         e.getStackTrace();
-    //     }
-
-    //     List<Card> level1 = new ArrayList<>();
-    //     List<Card> level2 = new ArrayList<>();
-    //     List<Card> level3 = new ArrayList<>();
-
-    //     for (Card c : allCards) {
-    //         if (c.getLevel() == 1) {
-    //             level1.add(c);
-    //         } else if (c.getLevel() == 2) {
-    //             level2.add(c);
-    //         } else {
-    //             level3.add(c);
-    //         }
-    //     }
-
-    //     Deck d1 = new Deck(1, level1);
-    //     Deck d2 = new Deck(2, level2);
-    //     Deck d3 = new Deck(3, level3);
-    //     d1.shuffle();
-    //     d2.shuffle();
-    //     d3.shuffle();
-
-    //     // setup board with 3 nobles for a 2-player game
-    //     List<Noble> allNobles = new ArrayList<Noble>();
-
-    //     //load nobles from CSV
-    //     try {
-    //         allNobles = CardLoader.loadNobles(NOBLES_FILEPATH);
-    //     } catch (IOException e) {
-    //         System.err.println("Error: Could not load Nobles.csv");
-    //         System.err.println("Make sure the file is in the same folder as the program.");
-    //         e.printStackTrace();
-    //     }
-
-    //     //pull out 3 nobles for the board
-    //     List<Noble> nobles = new ArrayList<>();
-    //     //shuffle the existing nobles
-    //     Collections.shuffle(allNobles);
-    //     for (int i = 0; i < 3; i++) {
-    //         nobles.add(allNobles.get(i));
-    //     }
-
-    //     Board board = new Board(nobles, d1, d2, d3, 2);
-
-    //     List<Player> players = new ArrayList<>();
-    //     players.add(new Player(player1Name, true));
-    //     players.add(new Player(player2Name, true));
-
-    //     return new Game(board, players);
-    // }
-
     private Game createGame(String player1Name, String player2Name) {
     boolean[] isAI = {false, false};
     String[] playerNames = {player1Name, player2Name};
