@@ -7,6 +7,9 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Scanner;
 
+import org.fusesource.jansi.AnsiConsole;
+
+import util.AnsiSupport;
 
 // it asks for the server IP and port
 // it connects to the game server
@@ -20,6 +23,7 @@ public class ClientMain {
     private static final String ANSI_CLEAR = "\u001B[2J\u001B[H";
 
     public static void main(String[] args) {
+        AnsiConsole.systemInstall();
         Scanner sc = new Scanner(System.in);
 
         String host;
@@ -111,24 +115,12 @@ public class ClientMain {
     }
 
     private static void clearScreen() {
-        if (supportsAnsi()) {
+        if (AnsiSupport.isSupported()) {
             System.out.print(ANSI_CLEAR);
             return;
         }
         for (int i = 0; i < SCREEN_CLEAR_LINES; i++) {
             System.out.println();
         }
-    }
-
-    private static boolean supportsAnsi() {
-        String os = System.getProperty("os.name", "").toLowerCase();
-        if (os.contains("win")) {
-            return System.getenv("WT_SESSION") != null
-                    || System.getenv("ANSICON") != null
-                    || "ON".equalsIgnoreCase(System.getenv("ConEmuANSI"))
-                    || System.getenv("TERM") != null;
-        }
-        String term = System.getenv("TERM");
-        return term != null && !term.equalsIgnoreCase("dumb");
     }
 }

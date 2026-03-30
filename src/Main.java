@@ -1,6 +1,8 @@
 
 import java.util.Scanner;
 
+import org.fusesource.jansi.AnsiConsole;
+
 import logic.Game;
 import util.GameApp;
 import util.ui.ConsoleUI;
@@ -10,6 +12,7 @@ import util.ui.ConsoleUI;
 public class Main{
     
     public static void main(String[] args) {
+        AnsiConsole.systemInstall();
         // Use a single Scanner for all input and pass it to ConsoleUI so input isn't consumed by multiple scanners
             Scanner sc = new Scanner(System.in);
             ConsoleUI ui = new ConsoleUI(sc);
