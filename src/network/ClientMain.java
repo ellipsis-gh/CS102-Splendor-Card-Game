@@ -23,7 +23,7 @@ public class ClientMain {
         Scanner sc = new Scanner(System.in);
 
         String host;
-        int port = 5080;
+        int port = 5000;
 
         if (args.length >= 2) {
             try {
