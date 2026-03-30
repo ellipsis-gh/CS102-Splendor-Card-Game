@@ -231,13 +231,27 @@ public class GameServer {
         String p1Text = NetworkFormatter.formatPlayer(game.getPlayers().get(0));
         String p2Text = NetworkFormatter.formatPlayer(game.getPlayers().get(1));
 
-        c1.send(boardText);
-        c1.send(p1Text);
-        c1.send(p2Text);
+        sendState(c1, boardText, p1Text, p2Text);
+        sendState(c2, boardText, p1Text, p2Text);
+    }
 
-        c2.send(boardText);
-        c2.send(p1Text);
-        c2.send(p2Text);
+    private void sendState(ClientHandler client, String boardText, String p1Text, String p2Text) {
+        client.send(NetworkFormatter.STATE_BEGIN);
+        sendMultiline(client, boardText);
+        sendMultiline(client, p1Text);
+        sendMultiline(client, p2Text);
+        client.send(NetworkFormatter.STATE_END);
+    }
+
+    private void sendMultiline(ClientHandler client, String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        // Preserve blank lines: split with limit -1 and send each line verbatim.
+        String[] lines = text.split("\\R", -1);
+        for (String line : lines) {
+            client.send(line);
+        }
     }
     //it sets up a Splendor match.
     private Game createGame(String player1Name, String player2Name) throws IOException {

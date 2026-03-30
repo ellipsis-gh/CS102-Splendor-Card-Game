@@ -1,2 +1,5 @@
-javac -d classes -cp src src/interfaces/*.java src/model/*.java src/Main.java
+#!/usr/bin/env sh
+set -eu
+
+javac -encoding UTF-8 -d classes -sourcepath src src/Main.java
 echo "Compilation successful"
