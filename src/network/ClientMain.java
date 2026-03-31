@@ -6,8 +6,10 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
 
 import org.fusesource.jansi.AnsiConsole;
 
@@ -383,19 +385,23 @@ public class ClientMain {
      * Returns them as a list in the order they appear on screen.
      */
     private static List<String> parseCardSlots(String state) {
-        List<String> slots = new ArrayList<>();
+        Set<String> slots = new LinkedHashSet<>();
         for (String line : state.split("\n")) {
             // Card boxes show the slot id at the start of the header row, e.g. "│ [1-0] ..."
-            int start = line.indexOf('[');
-            int end   = line.indexOf(']', start + 1);
-            if (start < 0 || end < 0) continue;
-            String tag = line.substring(start + 1, end);
-            // matches "1-0", "2-3", etc.  Skip noble tags "[N0]"
-            if (tag.matches("\\d-\\d") && !slots.contains(tag)) {
-                slots.add(tag);
+            String clean = stripAnsi(line);
+            int idx = 0;
+            while ((idx = clean.indexOf('[', idx)) >= 0) {
+                int end = clean.indexOf(']', idx + 1);
+                if (end < 0) break;
+                String tag = clean.substring(idx + 1, end).trim();
+                // Visible cards: "1-0" ... "3-3"; Reserved cards: "r-0" ... "r-2"
+                if (tag.matches("\\d-\\d") || tag.matches("r-\\d+")) {
+                    slots.add(tag);
+                }
+                idx = end + 1;
             }
         }
-        return slots;
+        return new ArrayList<>(slots);
     }
 
     /** Extracts the bare color name from an entry like "green (4 on board)". */
