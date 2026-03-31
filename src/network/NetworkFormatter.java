@@ -19,6 +19,13 @@ public class NetworkFormatter {
      */
     public static final String STATE_END = "<<STATE_END>>";
 
+    /**
+     * Marker lines sent by the server around a list of buyable card slots for the active player.
+     * Lines between these markers are plain slot tags like "2-1" or "r-0".
+     */
+    public static final String BUYABLE_BEGIN = "<<BUYABLE_BEGIN>>";
+    public static final String BUYABLE_END   = "<<BUYABLE_END>>";
+
     private NetworkFormatter() {
     }
 

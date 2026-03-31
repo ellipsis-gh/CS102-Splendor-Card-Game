@@ -119,6 +119,7 @@ public class GameServer {
                 ClientHandler otherClient = currentClient == client1 ? client2 : client1;
 
                 broadcastState(game, client1, client2);
+                sendBuyableList(game, current, currentClient);
 
                 currentClient.send("--- YOUR TURN: " + current.getName() + " ---");
                 otherClient.send("WAITING FOR " + current.getName());
@@ -230,6 +231,14 @@ public class GameServer {
             client.send(line);
         }
         client.send(NetworkFormatter.STATE_END);
+    }
+
+    private void sendBuyableList(Game game, Player player, ClientHandler client) {
+        client.send(NetworkFormatter.BUYABLE_BEGIN);
+        for (String tag : GameApp.getBuyableSlotTags(game, player)) {
+            client.send(tag);
+        }
+        client.send(NetworkFormatter.BUYABLE_END);
     }
 
 

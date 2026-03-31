@@ -279,6 +279,32 @@ public class GameApp {
     // Buy card — numbered list of affordable cards
     // -------------------------------------------------------------------------
 
+    /**
+     * Returns slot tags for cards the player can currently buy.
+     * Visible card tags are formatted as "level-slot" (e.g. "2-1").
+     * Reserved card tags are formatted as "r-index" (e.g. "r-0").
+     */
+    public static List<String> getBuyableSlotTags(Game game, Player p) {
+        List<String> tags = new ArrayList<>();
+
+        for (int level = 1; level <= 3; level++) {
+            Card[] row = game.getBoard().getVisibleCards(level);
+            for (int slot = 0; slot < row.length; slot++) {
+                if (row[slot] != null && game.canBuyVisibleCard(p, level, slot)) {
+                    tags.add(level + "-" + slot);
+                }
+            }
+        }
+
+        for (int i = 0; i < p.getHand().size(); i++) {
+            if (game.canBuyReservedCard(p, i)) {
+                tags.add("r-" + i);
+            }
+        }
+
+        return tags;
+    }
+
     private static boolean doBuyCard(Game game, Player p, Scanner sc) {
         List<String>   options = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();

@@ -33,6 +33,9 @@ public class ClientMain {
     // Last received state text — used by the input thread to build menus
     private static volatile String lastState = "";
 
+    // Last received list of buyable card slot tags for the active player (from server)
+    private static volatile List<String> lastBuyableSlots = new ArrayList<>();
+
     private enum InputMode { NONE, NAME, TURN, RETURN }
 
     private static final Object MODE_LOCK = new Object();
@@ -70,6 +73,8 @@ public class ClientMain {
                     String line;
                     boolean inState          = false;
                     StringBuilder stateBuffer = new StringBuilder();
+                    boolean inBuyable        = false;
+                    List<String> buyableBuffer = new ArrayList<>();
 
                     while ((line = in.readLine()) != null) {
                         if (NetworkFormatter.STATE_BEGIN.equals(line)) {
@@ -88,8 +93,21 @@ public class ClientMain {
                             System.out.flush();
                             continue;
                         }
+                        if (NetworkFormatter.BUYABLE_BEGIN.equals(line)) {
+                            inBuyable = true;
+                            buyableBuffer.clear();
+                            continue;
+                        }
+                        if (NetworkFormatter.BUYABLE_END.equals(line)) {
+                            inBuyable = false;
+                            lastBuyableSlots = new ArrayList<>(buyableBuffer);
+                            continue;
+                        }
                         if (inState) {
                             stateBuffer.append(line).append('\n');
+                        } else if (inBuyable) {
+                            String tag = stripAnsi(line).trim();
+                            if (!tag.isEmpty()) buyableBuffer.add(tag);
                         } else {
                             System.out.println(line);
                             if (line.equalsIgnoreCase("Enter your name:")) {
@@ -256,16 +274,18 @@ public class ClientMain {
     // ── Buy card ─────────────────────────────────────────────────────────────
 
     private static String translateBuyCard(Scanner sc) {
-        List<String> slots = parseCardSlots(lastState);
+        List<String> slots = new ArrayList<>(lastBuyableSlots);
 
         System.out.println();
         System.out.println("Buy which card?");
 
         if (slots.isEmpty()) {
-            System.out.println("  (No card info parsed — enter slot directly e.g. 1-0 or r0)");
+            System.out.println("  (No affordable cards to buy right now. Enter slot directly to attempt anyway.)");
         } else {
             for (int i = 0; i < slots.size(); i++) {
-                System.out.println("  [" + (i + 1) + "] " + slots.get(i));
+                String tag = slots.get(i);
+                String label = tag.startsWith("r-") ? (tag + " (reserved)") : tag;
+                System.out.println("  [" + (i + 1) + "] " + label);
             }
         }
         System.out.println("  [0] Cancel");
@@ -288,7 +308,7 @@ public class ClientMain {
             if (slot.startsWith("r-")) {
                 return "BUYR " + slot.substring(2);
             } else {
-                return "BUY " + slot.split(" ")[0]; // e.g. "1-0 ..."
+                return "BUY " + slot;
             }
         } catch (NumberFormatException e) {
             System.out.println("Enter a number.");
