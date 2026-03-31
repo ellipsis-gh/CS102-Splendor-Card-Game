@@ -3,6 +3,8 @@ package model;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import config.GameConfig;
 import interfaces.IBoard;
 
 // the physical game board — holds tokens, face-up cards, nobles, and the three decks
@@ -28,7 +30,7 @@ public class Board implements IBoard {
     }
 
     // setup tokens based on player count
-    private void initializeTokens(int playerCount) {
+private void initializeTokens(int playerCount) {
 
         int gemCount = GameConfig.getInitialGems(playerCount);
 
@@ -133,5 +135,13 @@ public class Board implements IBoard {
         if (level == 2) return !deck2.isEmpty();
         if (level == 3) return !deck3.isEmpty();
         return false;
+    }
+
+    // how many cards remain in a deck — used by the UI to show deck sizes
+    public int getDeckRemainingCount(int level) {
+        if (level == 1) return deck1.getRemainingCount();
+        if (level == 2) return deck2.getRemainingCount();
+        if (level == 3) return deck3.getRemainingCount();
+        return 0;
     }
 }
