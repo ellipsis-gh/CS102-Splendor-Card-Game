@@ -1,11 +1,20 @@
 @startuml
-title Splendor Card Game - Class Diagram
+title Splendor Card Game - SOLID-Oriented Class Diagram
 
 skinparam packageStyle rectangle
 skinparam classAttributeIconSize 0
+skinparam shadowing false
 left to right direction
 
-package "model" {
+package "Domain Abstractions" {
+  interface ICard
+  interface IDeck
+  interface INoble
+  interface IBoard
+  interface IPlayer
+}
+
+package "Domain Model" {
   enum Token
 
   class Card {
@@ -22,18 +31,14 @@ package "model" {
 
   class Deck {
     - level : int
-    - cards : ArrayList<Card>
+    - cards : List<Card>
     + shuffle()
     + draw() : Card
-    + isEmpty() : boolean
   }
 
   class Board {
     - availableTokens : Map<Token, Integer>
     - nobles : List<Noble>
-    - deck1 : Deck
-    - deck2 : Deck
-    - deck3 : Deck
     - level1Visible : Card[]
     - level2Visible : Card[]
     - level3Visible : Card[]
@@ -55,117 +60,166 @@ package "model" {
     + reserveCard(card : Card)
     + getScore() : int
   }
+}
 
+package "Game Logic" {
   class Game {
     - board : Board
     - players : List<Player>
     - currentPlayerIndex : int
     - gameOver : boolean
-    - winner : Player
     + getCurrentPlayer() : Player
     + nextTurn()
-    + canTakeThreeDifferentGems(player : Player, t1 : Token, t2 : Token, t3 : Token) : boolean
     + takeThreeDifferentGems(player : Player, t1 : Token, t2 : Token, t3 : Token)
-    + canBuyVisibleCard(player : Player, level : int, slot : int) : boolean
+    + takeTwoSameGems(player : Player, token : Token)
     + buyVisibleCard(player : Player, level : int, slot : int)
+    + buyReservedCard(player : Player, reservedIndex : int)
+    + reserveVisibleCard(player : Player, level : int, slot : int)
+    + reserveDeckCard(player : Player, level : int)
     + checkAndAwardNoble(player : Player) : Noble
   }
 
-  class CardLoader {
-    + loadCards(path : String) : List<Card>
-    + createDefaultNobles() : List<Noble>
+  class SplendorAI {
+    + chooseAction(player : Player, board : Board) : String
+    + chooseTokensToReturn(player : Player, board : Board, toReturn : int) : List<Token>
   }
-
-  class ConsoleUI
-  class SplendorAI
-  class Main
-  class Bank
-  class NobleData
-  class deckGetter
 }
 
-package "network" {
-  class ServerMain
+package "Application / Setup" {
+  class CardLoader {
+    + loadCards(path : String) : List<Card>
+    + loadNobles(path : String) : List<Noble>
+  }
+
+  class GameConfig {
+    + getWinningPoints() : int
+    + getCardFilePath() : String
+    + getNobleFilePath() : String
+    + getInitialNobles(playerCount : int) : int
+  }
+
+  class GameApp {
+    + setupGame(numPlayers : int, isAI : boolean[]) : Game
+    + setupGame(numPlayers : int, isAI : boolean[], playerNames : String[]) : Game
+    + runGameLoop(game : Game, sc : Scanner, ui : ConsoleUI)
+  }
+}
+
+package "Presentation" {
+  class ConsoleUI {
+    + getNumberOfPlayers() : int
+    + getPlayerTypes(numberOfPlayers : int) : boolean[]
+    + renderGameStateString(game : Game, ansi : boolean) : String
+    + displayGameState(game : Game)
+    + displayReservedCards(player : Player)
+  }
+
+  class NetworkFormatter {
+    + formatGameState(game : Game) : String
+  }
+
+  class AnsiSupport {
+    + isSupported() : boolean
+  }
+}
+
+package "Transport / Entry Points" {
+  class Main {
+    + main(args : String[])
+  }
+
+  class ServerMain {
+    + main(args : String[])
+  }
 
   class GameServer {
     - port : int
     + start()
   }
 
+  class ClientMain {
+    + main(args : String[])
+  }
+
   class ClientHandler {
     - socket : Socket
-    - in : BufferedReader
-    - out : PrintWriter
     - playerName : String
     + readLine() : String
     + send(message : String)
     + close()
   }
-
-  class ClientMain
-
-  class NetworkFormatter {
-    + formatBoard(board : Board) : String
-    + formatPlayer(player : Player) : String
-  }
 }
 
-Board *-- "3" Deck
-Board *-- "0..*" Noble
-Board *-- "12" Card : visible market
-Player *-- "0..*" Card : reserved
-Player *-- "0..*" Card : purchased
-Player *-- "0..*" Noble
-Player ..> Token
-Card ..> Token
-Noble ..> Token
-Board ..> Token
-Game *-- Board
-Game *-- "2..*" Player
-Deck *-- "0..*" Card
-CardLoader ..> Card
-CardLoader ..> Noble
-ConsoleUI ..> Board
-ConsoleUI ..> Player
-SplendorAI ..> Board
-SplendorAI ..> Player
-SplendorAI ..> Card
-Main ..> Game
-Main ..> ConsoleUI
-Main ..> CardLoader
-Bank ..> Token
-NobleData ..> Noble
-deckGetter ..> Card
+ICard <|-[#E67E22].. Card
+IDeck <|-[#E67E22].. Deck
+INoble <|-[#E67E22].. Noble
+IBoard <|-[#E67E22].. Board
+IPlayer <|-[#E67E22].. Player
 
-ServerMain ..> GameServer : starts
-GameServer ..> ClientHandler : manages 2 clients
-GameServer ..> Game : creates / controls
-GameServer ..> CardLoader : loads setup data
-GameServer ..> NetworkFormatter : formats state
-GameServer ..> Board
-GameServer ..> Player
-GameServer ..> Deck
-GameServer ..> Card
-GameServer ..> Noble
-ClientMain ..> "Socket" : connects to server
-ClientMain ..> ClientHandler : communicates with
-NetworkFormatter ..> Board
-NetworkFormatter ..> Player
-NetworkFormatter ..> Card
-NetworkFormatter ..> Noble
+Board *-[#7F8C8D]- "3" Deck
+Board *-[#7F8C8D]- "0..*" Noble
+Board *-[#7F8C8D]- "12" Card : visible market
+Deck *-[#7F8C8D]- "0..*" Card
+Player *-[#7F8C8D]- "0..*" Card : reserved
+Player *-[#7F8C8D]- "0..*" Card : purchased
+Player *-[#7F8C8D]- "0..*" Noble
+Game *-[#7F8C8D]- Board
+Game *-[#7F8C8D]- "2..*" Player
 
-note right of GameServer
-  Server-side controller.
-  Accepts 2 TCP clients,
-  runs the turn loop,
-  and sends text updates.
+Card -[#7F8C8D,dashed]-> Token
+Noble -[#7F8C8D,dashed]-> Token
+Board -[#7F8C8D,dashed]-> Token
+Player -[#7F8C8D,dashed]-> Token
+
+SplendorAI -[#8E44AD,dashed]-> Board
+SplendorAI -[#8E44AD,dashed]-> Player
+SplendorAI -[#8E44AD,dashed]-> Card
+
+CardLoader -[#2C3E50,dashed]-> Card
+CardLoader -[#2C3E50,dashed]-> Noble
+GameApp -[#2980B9,dashed]-> Game
+GameApp -[#2980B9,dashed]-> CardLoader
+GameApp -[#2980B9,dashed]-> GameConfig
+GameApp -[#2980B9,dashed]-> ConsoleUI
+GameApp -[#2980B9,dashed]-> SplendorAI
+
+ConsoleUI -[#27AE60,dashed]-> Game
+ConsoleUI -[#27AE60,dashed]-> Player
+ConsoleUI -[#27AE60,dashed]-> AnsiSupport
+NetworkFormatter -[#27AE60,dashed]-> Game
+NetworkFormatter -[#27AE60,dashed]-> ConsoleUI
+
+Main -[#2980B9,dashed]-> GameApp
+Main -[#2980B9,dashed]-> ConsoleUI
+ServerMain -[#C0392B,dashed]-> GameServer
+GameServer -[#C0392B,dashed]-> Game
+GameServer -[#C0392B,dashed]-> GameApp
+GameServer -[#C0392B,dashed]-> NetworkFormatter
+GameServer -[#C0392B,dashed]-> ClientHandler
+ClientMain -[#C0392B,dashed]-> NetworkFormatter
+ClientMain -[#27AE60,dashed]-> AnsiSupport
+
+note right of "Domain Abstractions"
+  Interface Segregation:
+  small focused interfaces
+  for core game entities.
 end note
 
-note right of ClientMain
-  Player-side console app.
-  Connects to the server,
-  prints incoming messages,
-  and sends typed commands.
+note right of "Game Logic"
+  Single Responsibility:
+  game rules and AI decisions
+  are separated from UI/networking.
+end note
+
+note right of "Presentation"
+  Presentation classes only render
+  and collect/display information.
+end note
+
+note right of "Transport / Entry Points"
+  Entry-point and transport classes
+  coordinate flow without owning
+  domain rules.
 end note
 
 @enduml

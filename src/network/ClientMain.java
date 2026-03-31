@@ -16,169 +16,65 @@ import org.fusesource.jansi.AnsiConsole;
 import util.AnsiSupport;
 
 /**
- * Network game client.
+ * Network client for the multiplayer game.
  *
- * Connects to the game server via TCP, renders the game state on screen, and
- * presents numbered menus so the player never has to type raw command strings.
- * Selections are translated to the server's text protocol before being sent.
+ * This version keeps the helpful numbered menus, but the control flow is kept
+ * simple:
+ * 1. a reader thread listens to the server
+ * 2. the main loop checks what kind of input is needed
+ * 3. the player's menu choice is translated into a server command string
  */
 public class ClientMain {
-    private static final int    SCREEN_CLEAR_LINES = 60;
-    private static final String ANSI_CLEAR         = "\u001B[2J\u001B[H";
+    private static final int SCREEN_CLEAR_LINES = 60;
+    private static final String ANSI_CLEAR = "\u001B[2J\u001B[H";
 
-    // These are the five non-gold gem colors in display order
     private static final String[] GEM_NAMES = {"black", "blue", "green", "red", "white"};
-    private static final String[] GEM_ABBR  = {"Blk", "Blu", "Grn", "Red", "Wht"};
+    private static final String[] GEM_ABBR = {"Blk", "Blu", "Grn", "Red", "Wht"};
 
-    // Last received state text — used by the input thread to build menus
+    private enum InputMode {
+        NONE,
+        NAME,
+        TURN,
+        RETURN
+    }
+
     private static volatile String lastState = "";
-
-    // Last received list of buyable card slot tags for the active player (from server)
     private static volatile List<String> lastBuyableSlots = new ArrayList<>();
-
-    private enum InputMode { NONE, NAME, TURN, RETURN }
-
-    private static final Object MODE_LOCK = new Object();
-    private static volatile InputMode mode = InputMode.NONE;
+    private static volatile InputMode currentMode = InputMode.NONE;
+    private static volatile boolean connected = true;
 
     public static void main(String[] args) {
         AnsiConsole.systemInstall();
         Scanner sc = new Scanner(System.in);
 
-        String host;
-        int port = 5000;
-
-        if (args.length >= 2) {
-            try { port = Integer.parseInt(args[1].trim()); } catch (NumberFormatException ignored) { }
-        }
-
-        if (args.length >= 1 && !args[0].isBlank()) {
-            host = args[0].trim();
-            System.out.println("Connecting to " + host + ":" + port + "...");
-        } else {
-            System.out.print("Enter server IP: ");
-            host = sc.nextLine().trim();
-        }
+        String host = getHost(args, sc);
+        int port = getPort(args);
 
         try (
-            Socket socket          = new Socket(host, port);
-            BufferedReader in      = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter    out     = new PrintWriter(socket.getOutputStream(), true)
+            Socket socket = new Socket(host, port);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true)
         ) {
             System.out.println("Connected to server.");
 
-            // ── Reader thread: receives server messages and redraws the screen ──
-            Thread readerThread = new Thread(() -> {
-                try {
-                    String line;
-                    boolean inState          = false;
-                    StringBuilder stateBuffer = new StringBuilder();
-                    boolean inBuyable        = false;
-                    List<String> buyableBuffer = new ArrayList<>();
-
-                    while ((line = in.readLine()) != null) {
-                        if (NetworkFormatter.STATE_BEGIN.equals(line)) {
-                            inState = true;
-                            stateBuffer.setLength(0);
-                            continue;
-                        }
-                        if (NetworkFormatter.STATE_END.equals(line)) {
-                            inState = false;
-                            lastState = stateBuffer.toString();
-                            clearScreen();
-                            System.out.print(lastState);
-                            if (lastState.length() > 0 && lastState.charAt(lastState.length() - 1) != '\n') {
-                                System.out.println();
-                            }
-                            System.out.flush();
-                            continue;
-                        }
-                        if (NetworkFormatter.BUYABLE_BEGIN.equals(line)) {
-                            inBuyable = true;
-                            buyableBuffer.clear();
-                            continue;
-                        }
-                        if (NetworkFormatter.BUYABLE_END.equals(line)) {
-                            inBuyable = false;
-                            lastBuyableSlots = new ArrayList<>(buyableBuffer);
-                            continue;
-                        }
-                        if (inState) {
-                            stateBuffer.append(line).append('\n');
-                        } else if (inBuyable) {
-                            String tag = stripAnsi(line).trim();
-                            if (!tag.isEmpty()) buyableBuffer.add(tag);
-                        } else {
-                            System.out.println(line);
-                            if (line.equalsIgnoreCase("Enter your name:")) {
-                                setMode(InputMode.NAME);
-                            } else if (line.startsWith("--- YOUR TURN")) {
-                                setMode(InputMode.TURN);
-                            } else if (line.startsWith("Invalid move")) {
-                                setMode(InputMode.TURN);
-                            } else if (line.startsWith("TOKEN LIMIT:")) {
-                                setMode(InputMode.RETURN);
-                            } else if (line.startsWith("Invalid return")) {
-                                setMode(InputMode.RETURN);
-                            }
-                        }
-                    }
-                } catch (IOException e) {
-                    System.out.println("Disconnected from server.");
-                }
-            });
+            Thread readerThread = new Thread(() -> readServerMessages(in));
             readerThread.setDaemon(true);
             readerThread.start();
 
-            // ── Input thread: presents numbered menus and translates to commands ──
-            boolean running = true;
-            while (running) {
-                InputMode current = waitForMode();
-                switch (current) {
-                    case NAME -> {
-                        System.out.print("Name: ");
-                        if (!sc.hasNextLine()) { running = false; break; }
-                        String name = sc.nextLine().trim();
-                        out.println(name.isBlank() ? "Player" : name);
-                    }
-                    case TURN -> {
-                        while (true) {
-                            printActionMenu();
-                            if (!sc.hasNextLine()) { running = false; break; }
-                            String input = sc.nextLine().trim().toLowerCase();
+            while (connected) {
+                if (currentMode == InputMode.NONE) {
+                    pauseBriefly();
+                    continue;
+                }
 
-                            String command = translateInput(input, sc);
-                            if (command == null) continue; // cancelled/invalid — reprompt locally
-
-                            out.println(command);
-                            if ("QUIT".equalsIgnoreCase(command)) running = false;
-                            break;
-                        }
-                    }
-                    case RETURN -> {
-                        while (true) {
-                            System.out.print("Return tokens (e.g. red 1) or Q: ");
-                            if (!sc.hasNextLine()) { running = false; break; }
-                            String line = sc.nextLine().trim();
-                            if (line.equalsIgnoreCase("q")) {
-                                out.println("QUIT");
-                                running = false;
-                                break;
-                            }
-                            String[] parts = line.split("\\s+");
-                            if (parts.length != 2) {
-                                System.out.println("Enter: <color> <count>");
-                                continue;
-                            }
-                            out.println("RETURN " + parts[0] + " " + parts[1]);
-                            break;
-                        }
-                    }
-                    case NONE -> running = false;
+                if (currentMode == InputMode.NAME) {
+                    handleNameInput(sc, out);
+                } else if (currentMode == InputMode.TURN) {
+                    handleTurnInput(sc, out);
+                } else if (currentMode == InputMode.RETURN) {
+                    handleReturnInput(sc, out);
                 }
             }
-
-            try { readerThread.join(2000); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
 
         } catch (IOException e) {
             System.out.println("Could not connect: " + e.getMessage());
@@ -187,285 +83,439 @@ public class ClientMain {
         sc.close();
     }
 
-    // -------------------------------------------------------------------------
-    // Numbered menus → server command strings
-    // -------------------------------------------------------------------------
+    private static String getHost(String[] args, Scanner sc) {
+        if (args.length >= 1 && !args[0].isBlank()) {
+            String host = args[0].trim();
+            System.out.println("Connecting to " + host + ":" + getPort(args) + "...");
+            return host;
+        }
+
+        System.out.print("Enter server IP: ");
+        return sc.nextLine().trim();
+    }
+
+    private static int getPort(String[] args) {
+        int port = 5080;
+        if (args.length >= 2) {
+            try {
+                port = Integer.parseInt(args[1].trim());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return port;
+    }
+
+    private static void readServerMessages(BufferedReader in) {
+        try {
+            String line;
+            boolean readingState = false;
+            boolean readingBuyable = false;
+            StringBuilder stateBuffer = new StringBuilder();
+            List<String> buyableBuffer = new ArrayList<>();
+
+            while ((line = in.readLine()) != null) {
+                if (NetworkFormatter.STATE_BEGIN.equals(line)) {
+                    readingState = true;
+                    stateBuffer.setLength(0);
+                    continue;
+                }
+
+                if (NetworkFormatter.STATE_END.equals(line)) {
+                    readingState = false;
+                    lastState = stateBuffer.toString();
+                    clearScreen();
+                    System.out.print(lastState);
+                    if (!lastState.endsWith("\n")) {
+                        System.out.println();
+                    }
+                    continue;
+                }
+
+                if (NetworkFormatter.BUYABLE_BEGIN.equals(line)) {
+                    readingBuyable = true;
+                    buyableBuffer.clear();
+                    continue;
+                }
+
+                if (NetworkFormatter.BUYABLE_END.equals(line)) {
+                    readingBuyable = false;
+                    lastBuyableSlots = new ArrayList<>(buyableBuffer);
+                    continue;
+                }
+
+                if (readingState) {
+                    stateBuffer.append(line).append('\n');
+                    continue;
+                }
+
+                if (readingBuyable) {
+                    String clean = stripAnsi(line).trim();
+                    if (!clean.isEmpty()) {
+                        buyableBuffer.add(clean);
+                    }
+                    continue;
+                }
+
+                System.out.println(line);
+                updateModeFromServerMessage(line);
+            }
+        } catch (IOException e) {
+            System.out.println("Disconnected from server.");
+        } finally {
+            connected = false;
+        }
+    }
+
+    private static void updateModeFromServerMessage(String line) {
+        if (line.equalsIgnoreCase("Enter your name:")) {
+            currentMode = InputMode.NAME;
+        } else if (line.startsWith("--- YOUR TURN")) {
+            currentMode = InputMode.TURN;
+        } else if (line.startsWith("Invalid move")) {
+            currentMode = InputMode.TURN;
+        } else if (line.startsWith("TOKEN LIMIT:")) {
+            currentMode = InputMode.RETURN;
+        } else if (line.startsWith("Invalid return")) {
+            currentMode = InputMode.RETURN;
+        }
+    }
+
+    private static void handleNameInput(Scanner sc, PrintWriter out) {
+        System.out.print("Name: ");
+        if (!sc.hasNextLine()) {
+            connected = false;
+            return;
+        }
+
+        String name = sc.nextLine().trim();
+        out.println(name.isBlank() ? "Player" : name);
+        currentMode = InputMode.NONE;
+    }
+
+    private static void handleTurnInput(Scanner sc, PrintWriter out) {
+        while (connected) {
+            printActionMenu();
+            if (!sc.hasNextLine()) {
+                connected = false;
+                return;
+            }
+
+            String input = sc.nextLine().trim().toLowerCase();
+            String command = translateTopLevelChoice(input, sc);
+            if (command == null) {
+                continue;
+            }
+
+            out.println(command);
+            currentMode = InputMode.NONE;
+
+            if ("QUIT".equalsIgnoreCase(command)) {
+                connected = false;
+            }
+            return;
+        }
+    }
+
+    private static void handleReturnInput(Scanner sc, PrintWriter out) {
+        while (connected) {
+            System.out.print("Return tokens (example: red 1) or Q: ");
+            if (!sc.hasNextLine()) {
+                connected = false;
+                return;
+            }
+
+            String input = sc.nextLine().trim();
+            if (input.equalsIgnoreCase("q")) {
+                out.println("QUIT");
+                connected = false;
+                return;
+            }
+
+            String[] parts = input.split("\\s+");
+            if (parts.length != 2) {
+                System.out.println("Enter: <color> <count>");
+                continue;
+            }
+
+            out.println("RETURN " + parts[0] + " " + parts[1]);
+            currentMode = InputMode.NONE;
+            return;
+        }
+    }
 
     private static void printActionMenu() {
-        System.out.println("┌─ YOUR MOVE ──────────────────────────────────────┐");
-        System.out.println("│  [1]  Take gems                                  │");
-        System.out.println("│  [2]  Buy a card                                 │");
-        System.out.println("│  [3]  Reserve a card                             │");
-        System.out.println("│  [Q]  Quit                                       │");
-        System.out.println("└──────────────────────────────────────────────────┘");
+        System.out.println("Choose your move:");
+        System.out.println("  [1] Take gems");
+        System.out.println("  [2] Buy a card");
+        System.out.println("  [3] Reserve a card");
+        System.out.println("  [Q] Quit");
         System.out.print("Choice: ");
     }
 
-    /**
-     * Translates a top-level menu choice into a server command string.
-     * Returns null if the player cancelled or entered something invalid.
-     */
-    private static String translateInput(String input, Scanner sc) {
-        return switch (input) {
-            case "1"    -> translateTakeGems(sc);
-            case "2"    -> translateBuyCard(sc);
-            case "3"    -> translateReserve(sc);
-            case "q"    -> "QUIT";
-            default     -> { System.out.println("Enter 1, 2, 3, or Q."); yield null; }
-        };
+    private static String translateTopLevelChoice(String input, Scanner sc) {
+        if (input.equals("1")) {
+            return translateTakeGems(sc);
+        }
+        if (input.equals("2")) {
+            return translateBuyCard(sc);
+        }
+        if (input.equals("3")) {
+            return translateReserveCard(sc);
+        }
+        if (input.equals("q")) {
+            return "QUIT";
+        }
+
+        System.out.println("Enter 1, 2, 3, or Q.");
+        return null;
     }
 
-    // ── Take gems ────────────────────────────────────────────────────────────
-
     private static String translateTakeGems(Scanner sc) {
-        // Extract available gem counts from the last printed state
-        List<String> available = parseAvailableGems(lastState);
+        List<String> availableGems = parseAvailableGems(lastState);
 
-        if (available.isEmpty()) {
-            System.out.println("No gem info available. Type command directly: TAKE3 <c> <c> <c> or TAKE2 <c>");
-            System.out.print("Command: ");
+        if (availableGems.isEmpty()) {
+            System.out.print("Type command directly (TAKE3 ... or TAKE2 ...): ");
             return sc.hasNextLine() ? sc.nextLine().trim() : null;
         }
 
-        System.out.println();
         System.out.println("Available gem colors:");
-        for (int i = 0; i < available.size(); i++) {
-            System.out.println("  [" + (i + 1) + "] " + available.get(i));
+        for (int i = 0; i < availableGems.size(); i++) {
+            System.out.println("  [" + (i + 1) + "] " + availableGems.get(i));
         }
-        System.out.println();
-        System.out.println("  Take 3 different → enter 3 numbers  e.g.  1 2 3");
-        System.out.println("  Take 2 same      → enter same number twice  e.g.  2 2");
-        System.out.println("  [0] Cancel");
+        System.out.println("Take 3 different: enter 3 numbers, example: 1 2 3");
+        System.out.println("Take 2 same: enter the same number twice, example: 2 2");
+        System.out.println("[0] Cancel");
         System.out.print("Choice: ");
 
-        if (!sc.hasNextLine()) return null;
-        String line  = sc.nextLine().trim();
-        if (line.equals("0")) return null;
+        if (!sc.hasNextLine()) {
+            return null;
+        }
+
+        String line = sc.nextLine().trim();
+        if (line.equals("0")) {
+            return null;
+        }
 
         String[] parts = line.split("\\s+");
         try {
             if (parts.length == 2 && parts[0].equals(parts[1])) {
-                int idx = Integer.parseInt(parts[0]) - 1;
-                if (idx < 0 || idx >= available.size()) { System.out.println("Invalid."); return null; }
-                String color = gemColorName(available.get(idx));
-                return "TAKE2 " + color;
+                int index = Integer.parseInt(parts[0]) - 1;
+                if (!isValidIndex(index, availableGems.size())) {
+                    System.out.println("Invalid choice.");
+                    return null;
+                }
+                return "TAKE2 " + getGemColorName(availableGems.get(index));
+            }
 
-            } else if (parts.length == 3) {
-                int i1 = Integer.parseInt(parts[0]) - 1;
-                int i2 = Integer.parseInt(parts[1]) - 1;
-                int i3 = Integer.parseInt(parts[2]) - 1;
-                if (i1 < 0 || i1 >= available.size() ||
-                    i2 < 0 || i2 >= available.size() ||
-                    i3 < 0 || i3 >= available.size()) { System.out.println("Invalid."); return null; }
-                return "TAKE3 " + gemColorName(available.get(i1))
-                        + " " + gemColorName(available.get(i2))
-                        + " " + gemColorName(available.get(i3));
+            if (parts.length == 3) {
+                int first = Integer.parseInt(parts[0]) - 1;
+                int second = Integer.parseInt(parts[1]) - 1;
+                int third = Integer.parseInt(parts[2]) - 1;
 
-            } else {
-                System.out.println("Enter 2 numbers (same) or 3 different numbers.");
-                return null;
+                if (!isValidIndex(first, availableGems.size())
+                        || !isValidIndex(second, availableGems.size())
+                        || !isValidIndex(third, availableGems.size())) {
+                    System.out.println("Invalid choice.");
+                    return null;
+                }
+
+                return "TAKE3 "
+                        + getGemColorName(availableGems.get(first)) + " "
+                        + getGemColorName(availableGems.get(second)) + " "
+                        + getGemColorName(availableGems.get(third));
             }
         } catch (NumberFormatException e) {
-            System.out.println("Enter valid numbers.");
+            System.out.println("Enter numbers only.");
             return null;
         }
-    }
 
-    // ── Buy card ─────────────────────────────────────────────────────────────
+        System.out.println("Enter either 2 matching numbers or 3 numbers.");
+        return null;
+    }
 
     private static String translateBuyCard(Scanner sc) {
         List<String> slots = new ArrayList<>(lastBuyableSlots);
 
-        System.out.println();
         System.out.println("Buy which card?");
-
         if (slots.isEmpty()) {
-            System.out.println("  (No affordable cards to buy right now. Enter slot directly to attempt anyway.)");
-        } else {
-            for (int i = 0; i < slots.size(); i++) {
-                String tag = slots.get(i);
-                String label = tag.startsWith("r-") ? (tag + " (reserved)") : tag;
-                System.out.println("  [" + (i + 1) + "] " + label);
+            System.out.println("No affordable cards were listed by the server.");
+            System.out.print("Type a slot directly (example: 1-0 or r0), or 0 to cancel: ");
+            if (!sc.hasNextLine()) {
+                return null;
             }
+
+            String line = sc.nextLine().trim();
+            if (line.equals("0")) {
+                return null;
+            }
+
+            if (line.startsWith("r")) {
+                return "BUYR " + line.replace("r", "").replace("-", "").trim();
+            }
+            return "BUY " + line;
+        }
+
+        for (int i = 0; i < slots.size(); i++) {
+            String slot = slots.get(i);
+            String label = slot.startsWith("r-") ? slot + " (reserved)" : slot;
+            System.out.println("  [" + (i + 1) + "] " + label);
         }
         System.out.println("  [0] Cancel");
         System.out.print("Choice: ");
 
-        if (!sc.hasNextLine()) return null;
-        String line = sc.nextLine().trim();
-        if (line.equals("0")) return null;
+        if (!sc.hasNextLine()) {
+            return null;
+        }
 
-        if (slots.isEmpty()) {
-            // fallback: the user types a raw slot like "1-0" or "r0"
-            return line.startsWith("r") ? "BUYR " + line.replace("r", "").replace("-", "").trim()
-                                        : "BUY " + line;
+        String line = sc.nextLine().trim();
+        if (line.equals("0")) {
+            return null;
         }
 
         try {
             int choice = Integer.parseInt(line) - 1;
-            if (choice < 0 || choice >= slots.size()) { System.out.println("Invalid."); return null; }
+            if (!isValidIndex(choice, slots.size())) {
+                System.out.println("Invalid choice.");
+                return null;
+            }
+
             String slot = slots.get(choice);
             if (slot.startsWith("r-")) {
                 return "BUYR " + slot.substring(2);
-            } else {
-                return "BUY " + slot;
             }
+            return "BUY " + slot;
         } catch (NumberFormatException e) {
             System.out.println("Enter a number.");
             return null;
         }
     }
 
-    // ── Reserve card ─────────────────────────────────────────────────────────
+    private static String translateReserveCard(Scanner sc) {
+        List<String> slots = parseVisibleCardSlots(lastState);
 
-    private static String translateReserve(Scanner sc) {
-        List<String> slots = parseCardSlots(lastState);
-
-        System.out.println();
         System.out.println("Reserve which card?");
-
-        if (slots.isEmpty()) {
-            System.out.println("  (No card info parsed — enter slot directly e.g. 1-0 or DECK 2)");
-        } else {
-            for (int i = 0; i < slots.size(); i++) {
-                System.out.println("  [" + (i + 1) + "] " + slots.get(i));
-            }
-            // offer deck options
-            System.out.println("  [D1] Top of Deck 1  [D2] Top of Deck 2  [D3] Top of Deck 3");
+        for (int i = 0; i < slots.size(); i++) {
+            System.out.println("  [" + (i + 1) + "] " + slots.get(i));
         }
+        System.out.println("  [D1] Reserve top card from deck 1");
+        System.out.println("  [D2] Reserve top card from deck 2");
+        System.out.println("  [D3] Reserve top card from deck 3");
         System.out.println("  [0] Cancel");
         System.out.print("Choice: ");
 
-        if (!sc.hasNextLine()) return null;
-        String line = sc.nextLine().trim().toLowerCase();
-        if (line.equals("0")) return null;
-
-        if (line.startsWith("d") && line.length() == 2) {
-            try {
-                int level = Integer.parseInt(line.substring(1));
-                return "RESERVEDECK " + level;
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid deck choice.");
-                return null;
-            }
+        if (!sc.hasNextLine()) {
+            return null;
         }
 
-        if (slots.isEmpty()) {
-            return line.startsWith("deck") ? "RESERVEDECK " + line.replace("deck", "").trim()
-                                           : "RESERVE " + line;
+        String line = sc.nextLine().trim().toLowerCase();
+        if (line.equals("0")) {
+            return null;
+        }
+
+        if (line.equals("d1") || line.equals("d2") || line.equals("d3")) {
+            return "RESERVEDECK " + line.substring(1);
         }
 
         try {
             int choice = Integer.parseInt(line) - 1;
-            if (choice < 0 || choice >= slots.size()) { System.out.println("Invalid."); return null; }
-            String slot = slots.get(choice).split(" ")[0]; // e.g. "2-1"
-            return "RESERVE " + slot;
+            if (!isValidIndex(choice, slots.size())) {
+                System.out.println("Invalid choice.");
+                return null;
+            }
+            return "RESERVE " + slots.get(choice);
         } catch (NumberFormatException e) {
             System.out.println("Enter a number or D1/D2/D3.");
             return null;
         }
     }
 
-    // -------------------------------------------------------------------------
-    // State parsing helpers
-    // -------------------------------------------------------------------------
-
-    /**
-     * Scans the last received state string for the bank line and returns
-     * a list of "COLOR (N on board)" entries for colors with count > 0.
-     */
     private static List<String> parseAvailableGems(String state) {
         List<String> result = new ArrayList<>();
+
         for (String line : state.split("\n")) {
             String clean = stripAnsi(line);
-            if (!clean.startsWith("Bank:")) continue;
-            // Bank line looks like: "Bank:   Blk:3  Blu:4  Grn:2  ..."
+            if (!clean.startsWith("Bank:")) {
+                continue;
+            }
+
             for (int i = 0; i < GEM_NAMES.length; i++) {
-                String gem  = GEM_NAMES[i];
-                String abbr = GEM_ABBR[i];
-                // match e.g. "Blk:3"
-                int idx = clean.indexOf(abbr + ":");
-                if (idx < 0) continue;
+                String shortName = GEM_ABBR[i];
+                int index = clean.indexOf(shortName + ":");
+                if (index < 0) {
+                    continue;
+                }
+
                 try {
-                    int start = idx + abbr.length() + 1;
-                    int end   = clean.indexOf(' ', start);
-                    String ns = end < 0 ? clean.substring(start)
-                                        : clean.substring(start, end);
-                    int count = Integer.parseInt(ns.trim());
-                    if (count > 0) result.add(gem + " (" + count + " on board)");
-                } catch (NumberFormatException ignored) { }
+                    int start = index + shortName.length() + 1;
+                    int end = clean.indexOf(' ', start);
+                    String numberText = (end < 0) ? clean.substring(start) : clean.substring(start, end);
+                    int count = Integer.parseInt(numberText.trim());
+                    if (count > 0) {
+                        result.add(GEM_NAMES[i] + " (" + count + " on board)");
+                    }
+                } catch (NumberFormatException ignored) {
+                }
             }
             break;
         }
+
         return result;
     }
 
-    /**
-     * Scans the last state string for card slot identifiers like "[1-0]", "[2-3]" etc.
-     * Returns them as a list in the order they appear on screen.
-     */
-    private static List<String> parseCardSlots(String state) {
+    private static List<String> parseVisibleCardSlots(String state) {
         Set<String> slots = new LinkedHashSet<>();
+
         for (String line : state.split("\n")) {
-            // Card boxes show the slot id at the start of the header row, e.g. "│ [1-0] ..."
             String clean = stripAnsi(line);
-            int idx = 0;
-            while ((idx = clean.indexOf('[', idx)) >= 0) {
-                int end = clean.indexOf(']', idx + 1);
-                if (end < 0) break;
-                String tag = clean.substring(idx + 1, end).trim();
-                // Visible cards: "1-0" ... "3-3"; Reserved cards: "r-0" ... "r-2"
-                if (tag.matches("\\d-\\d") || tag.matches("r-\\d+")) {
+            int start = 0;
+
+            while ((start = clean.indexOf('[', start)) >= 0) {
+                int end = clean.indexOf(']', start + 1);
+                if (end < 0) {
+                    break;
+                }
+
+                String tag = clean.substring(start + 1, end).trim();
+                if (tag.matches("\\d-\\d")) {
                     slots.add(tag);
                 }
-                idx = end + 1;
+                start = end + 1;
             }
         }
+
         return new ArrayList<>(slots);
     }
 
-    /** Extracts the bare color name from an entry like "green (4 on board)". */
-    private static String gemColorName(String entry) {
-        int space = entry.indexOf(' ');
-        return space < 0 ? entry : entry.substring(0, space);
+    private static boolean isValidIndex(int index, int size) {
+        return index >= 0 && index < size;
     }
 
-    // -------------------------------------------------------------------------
-    // Screen helpers
-    // -------------------------------------------------------------------------
+    private static String getGemColorName(String entry) {
+        int space = entry.indexOf(' ');
+        return (space < 0) ? entry : entry.substring(0, space);
+    }
 
     private static void clearScreen() {
         if (AnsiSupport.isSupported()) {
             System.out.print(ANSI_CLEAR);
             return;
         }
-        for (int i = 0; i < SCREEN_CLEAR_LINES; i++) System.out.println();
-    }
 
-    private static void setMode(InputMode newMode) {
-        synchronized (MODE_LOCK) {
-            mode = newMode;
-            MODE_LOCK.notifyAll();
+        for (int i = 0; i < SCREEN_CLEAR_LINES; i++) {
+            System.out.println();
         }
     }
 
-    private static InputMode waitForMode() {
-        synchronized (MODE_LOCK) {
-            while (mode == InputMode.NONE) {
-                try {
-                    MODE_LOCK.wait();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return InputMode.NONE;
-                }
-            }
-            InputMode current = mode;
-            mode = InputMode.NONE;
-            return current;
+    private static void pauseBriefly() {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            connected = false;
         }
     }
 
-    private static String stripAnsi(String s) {
-        return s == null ? "" : s.replaceAll("\u001B\\[[^m]*m", "");
+    private static String stripAnsi(String text) {
+        return text == null ? "" : text.replaceAll("\u001B\\[[^m]*m", "");
     }
 }
