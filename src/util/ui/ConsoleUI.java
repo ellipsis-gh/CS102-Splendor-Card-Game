@@ -12,10 +12,10 @@ import util.AnsiSupport;
 /**
  * Public UI facade used by the rest of the project.
  *
- * <p><b>Important design choice:</b> this class is responsible for interaction
+ * Important design choice: this class is responsible for interaction
  * (reading input + printing). It delegates all layout/string-building to
  * {@link ConsoleRenderer}. This keeps the UI code easy to explain and ensures
- * local and networking mode share the same board rendering.</p>
+ * local and networking mode share the same board rendering.
  */
 public class ConsoleUI {
 
@@ -63,8 +63,8 @@ public class ConsoleUI {
     /**
      * Backward-compatible setup prompt used by {@code Main}.
      *
-     * <p>This method exists because older versions of the project asked for the
-     * win score first, before asking for player count.</p>
+     * This method exists because older versions of the project asked for the
+     * win score first, before asking for player count.
      *
      * @param defaultWinScore config default to show when the user just presses Enter
      * @return chosen winning score within {@link #MIN_WIN_SCORE}..{@link #MAX_WIN_SCORE}

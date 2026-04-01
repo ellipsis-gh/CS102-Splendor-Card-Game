@@ -13,20 +13,20 @@ import model.Token;
 /**
  * ConsoleRenderer — the single public entry point for all console rendering.
  *
- * <p>This class is the only {@code public} class in the util.ui package.
+ * This class is the only {@code public} class in the util.ui package.
  * All other helper classes (HelperFunctions, ConsoleFormat, ConsoleViews) are
  * package-private — callers outside this package only need to know about
- * ConsoleRenderer.</p>
+ * ConsoleRenderer.
  *
- * <p>Three major screens live here:</p>
- * <ol>
- *   <li>{@link #renderGameStateString} — the normal in-game board view</li>
- *   <li>{@link #renderGameOverString} — final screen (board + winner banner)</li>
- *   <li>{@link #renderReservedCardsString} — reserved-card popup (local R shortcut)</li>
- * </ol>
+ * Three major screens live here:
+ * 
+ *   {@link #renderGameStateString} — the normal in-game board view
+ *   {@link #renderGameOverString} — final screen (board + winner banner)
+ *   {@link #renderReservedCardsString} — reserved-card popup (local R shortcut)
+ * 
  *
- * <p>Everything returns a {@code String}; nothing prints to the terminal directly.
- * The caller decides when and where to flush.</p>
+ * Everything returns a {@code String}; nothing prints to the terminal directly.
+ * The caller decides when and where to flush.
  */
 public final class ConsoleRenderer {
 
@@ -37,17 +37,16 @@ public final class ConsoleRenderer {
     /**
      * Renders the full in-game board view.
      *
-     * <p>Sections (top to bottom):
-     * <ol>
-     *   <li>Title + token legend</li>
-     *   <li>Turn banner + score summary</li>
-     *   <li>Player summary boxes (score, tokens, bonuses)</li>
-     *   <li>Bank (available gems)</li>
-     *   <li>Noble grid</li>
-     *   <li>Market (levels 3 → 1 with card boxes)</li>
-     *   <li>Reserved-card reminder for human players</li>
-     * </ol>
-     * </p>
+     * Sections (top to bottom):
+     * 
+     *   Title + token legend
+     *   Turn banner + score summary
+     *   Player summary boxes (score, tokens, bonuses)
+     *   Bank (available gems)
+     *   Noble grid
+     *   Market (levels 3 → 1 with card boxes)
+     *   Reserved-card reminder for human players
+     * 
      *
      * @param game     the current game state (must not be null)
      * @param ansi     true to embed ANSI colour/bold sequences
@@ -99,8 +98,8 @@ public final class ConsoleRenderer {
     /**
      * Compact cost formatter used by GameEngine when building action-menu option lists.
      *
-     * <p>Returns a plain-text string like "Blk2 Blu1" with no ANSI codes, so it is
-     * safe to send over the network to clients that may not support ANSI.</p>
+     * Returns a plain-text string like "Blk2 Blu1" with no ANSI codes, so it is
+     * safe to send over the network to clients that may not support ANSI.
      */
     public static String formatCostCompactStatic(Map<Token, Integer> cost) {
         return ConsoleFormat.formatCostCompactStatic(cost);
@@ -113,9 +112,9 @@ public final class ConsoleRenderer {
     /**
      * Builds the full game-state screen string section by section.
      *
-     * <p>All rendering details are delegated to ConsoleViews (for the player/noble/market
+     * All rendering details are delegated to ConsoleViews (for the player/noble/market
      * sections) and ConsoleFormat (for token/score strings).  This method is the
-     * "director" that decides the order and spacing of sections.</p>
+     * "director" that decides the order and spacing of sections.
      */
     private static String buildGameStateString(Game game, boolean ansi, int winScore) {
         StringBuilder out = new StringBuilder();
@@ -211,17 +210,17 @@ public final class ConsoleRenderer {
     /**
      * Builds the gold-bordered winner banner shown at the end of a game.
      *
-     * <p>The banner shows:
-     * <ul>
-     *   <li>"GAME OVER" centred at the top</li>
-     *   <li>Winner name + prestige score</li>
-     *   <li>Final standings, sorted by prestige score (descending);
-     *       ties broken by purchased card count (ascending — fewer cards is better)</li>
-     * </ul>
-     * </p>
+     * The banner shows:
+     * 
+     *   "GAME OVER" centred at the top
+     *   Winner name + prestige score
+     *   Final standings, sorted by prestige score (descending);
+     *       ties broken by purchased card count (ascending — fewer cards is better)
+     * 
+     * 
      *
-     * <p>ANSI code "1;33m" = bold (1) + yellow/gold foreground (33).
-     * This makes the border visually stand out from the rest of the screen.</p>
+     * ANSI code "1;33m" = bold (1) + yellow/gold foreground (33).
+     * This makes the border visually stand out from the rest of the screen.
      */
     private static String buildGameOverBanner(Game game, boolean ansi, int winScore) {
         List<Player> players = game.getPlayers();

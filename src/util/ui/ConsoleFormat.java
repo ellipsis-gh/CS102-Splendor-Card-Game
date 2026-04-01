@@ -13,17 +13,17 @@ import model.Token;
  *
  * Merges what used to be ConsoleTokenFormat and ConsoleScoreView into a
  * single, easy-to-read file.  Every method here builds a String; nothing
- * prints to the terminal directly.</p>
+ * prints to the terminal directly.
  *
- * Two kinds of helpers live here:</p>
+ * Two kinds of helpers live here:
  * 
- *   Token / cost helpers</b> — turn Token enums and cost maps into
- *       human-readable strings, optionally with ANSI colour.</li>
+ *   Token / cost helpers — turn Token enums and cost maps into
+ *       human-readable strings, optionally with ANSI colour.
  *   Score helpers — build score summaries and badges shown at the
  *       top of each player's panel.
  * 
  *
- * All methods are {@code static}.  The class cannot be instantiated.</p>
+ * All methods are {@code static}.  The class cannot be instantiated.
  */
 final class ConsoleFormat {
 
@@ -156,8 +156,8 @@ final class ConsoleFormat {
     /**
      * Compact cost string with NO ANSI colour.
      *
-     * <p>Used by GameEngine when building the action-menu option list, which is
-     * plain text shared across local and network modes.</p>
+     * Used by GameEngine when building the action-menu option list, which is
+     * plain text shared across local and network modes.
      *
      * Example: "Blk2 Blu1 Grn1"
      */
@@ -177,10 +177,10 @@ final class ConsoleFormat {
     /**
      * Computes the remaining gem cost after applying a player's permanent bonuses.
      *
-     * <p>In Splendor, each purchased card grants a permanent discount equal to its
+     * In Splendor, each purchased card grants a permanent discount equal to its
      * bonus gem colour.  This method subtracts those bonuses from the card's raw
      * cost.  Gold tokens can later cover whatever remains — but that deduction
-     * happens at buy-time in the game logic, not here.</p>
+     * happens at buy-time in the game logic, not here.
      *
      * @param card   the card the player wants to buy
      * @param player the player (their bonuses map is used for discounts)

@@ -13,18 +13,18 @@ import model.Token;
 /**
  * ConsoleViews — every view section for the board in one file.
  *
- * <p>Merges what used to be four separate files:</p>
- * <ul>
- *   <li>ConsoleMarketView  — card rows with coloured box borders</li>
- *   <li>ConsoleNobleView   — noble grid with progress-toward indicators</li>
- *   <li>ConsolePlayerView  — per-player summary boxes (score, tokens, bonuses)</li>
- *   <li>ConsoleReservedView — reserved-hand popup (local R shortcut)</li>
- * </ul>
+ * Merges what used to be four separate files:
+ * 
+ *   ConsoleMarketView  — card rows with coloured box borders
+ *   ConsoleNobleView   — noble grid with progress-toward indicators
+ *   ConsolePlayerView  — per-player summary boxes (score, tokens, bonuses)
+ *   ConsoleReservedView — reserved-hand popup (local R shortcut)
+ * 
  *
- * <p>Each section is clearly labelled.  All methods return Strings; nothing
- * prints to the terminal directly — the caller decides when to flush.</p>
+ * Each section is clearly labelled.  All methods return Strings; nothing
+ * prints to the terminal directly — the caller decides when to flush.
  *
- * <p>All methods are {@code static}.  The class cannot be instantiated.</p>
+ * All methods are {@code static}.  The class cannot be instantiated.
  */
 final class ConsoleViews {
 
@@ -42,9 +42,9 @@ final class ConsoleViews {
     /**
      * Builds a complete row for one card level, ready to print.
      *
-     * <p>All card boxes in the row are forced to the same height so that the
+     * All card boxes in the row are forced to the same height so that the
      * borders line up in a clean grid, even when some cards have longer costs
-     * that need wrapping onto multiple lines.</p>
+     * that need wrapping onto multiple lines.
      *
      * @param level 1, 2, or 3
      * @param row   the 4 visible card slots at this level (null = empty slot)
@@ -200,13 +200,13 @@ final class ConsoleViews {
     /**
      * Renders a single noble as a box.
      *
-     * <p>Each box shows:
-     * <ol>
-     *   <li>Noble name + prestige points (right-aligned)</li>
-     *   <li>The bonus requirement (e.g. "Needs: Grn3 Red2")</li>
-     *   <li>How many more bonuses the current player needs ("Need: Grn1") or "READY!"</li>
-     * </ol>
-     * </p>
+     * Each box shows:
+     * 
+     *   Noble name + prestige points (right-aligned)
+     *   The bonus requirement (e.g. "Needs: Grn3 Red2")
+     *   How many more bonuses the current player needs ("Need: Grn1") or "READY!"
+     * 
+     * 
      */
     private static List<String> renderNobleBox(int index, Noble noble,
                                                Player currentPlayer, boolean ansi) {
@@ -282,15 +282,15 @@ final class ConsoleViews {
     /**
      * Renders a single player's summary box.
      *
-     * <p>Contents:
-     * <ol>
-     *   <li>Name row — bold when it's this player's turn; "<== " marker on the right</li>
-     *   <li>Score badge — colour-coded (yellow = active turn, green = leader)</li>
-     *   <li>Reserved / bought / nobles counts</li>
-     *   <li>Token counts (fixed-width, includes GOLD)</li>
-     *   <li>Bonus counts (fixed-width, no GOLD)</li>
-     * </ol>
-     * </p>
+     * Contents:
+     * 
+     *   Name row — bold when it's this player's turn; "<== " marker on the right
+     *   Score badge — colour-coded (yellow = active turn, green = leader)
+     *   Reserved / bought / nobles counts
+     *   Token counts (fixed-width, includes GOLD)
+     *   Bonus counts (fixed-width, no GOLD)
+     * 
+     * 
      */
     private static List<String> renderPlayerBox(int index, Player player,
                                                 boolean isCurrent, int winScore,
@@ -352,14 +352,14 @@ final class ConsoleViews {
     /**
      * Builds the reserved-cards popup for the given player.
      *
-     * <p>Shows each reserved card with:
-     * <ul>
-     *   <li>Slot tag [r-0], [r-1], [r-2]</li>
-     *   <li>"(not affordable yet)" when the player can't buy it this turn</li>
-     *   <li>Full card summary (prestige + bonus + cost)</li>
-     *   <li>Remaining cost after applying the player's current bonuses</li>
-     * </ul>
-     * </p>
+     * Shows each reserved card with:
+     * 
+     *   Slot tag [r-0], [r-1], [r-2]
+     *   "(not affordable yet)" when the player can't buy it this turn
+     *   Full card summary (prestige + bonus + cost)
+     *   Remaining cost after applying the player's current bonuses
+     * 
+     * 
      *
      * @param player the player whose reserved hand to show
      * @param ansi   true for coloured output
