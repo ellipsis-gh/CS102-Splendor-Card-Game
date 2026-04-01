@@ -1,9 +1,10 @@
 package model;
 
+import config.GameConfig;
+import interfaces.IBoard;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import interfaces.IBoard;
 
 // the physical game board — holds tokens, face-up cards, nobles, and the three decks
 public class Board implements IBoard {
