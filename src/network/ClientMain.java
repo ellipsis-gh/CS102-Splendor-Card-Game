@@ -61,8 +61,9 @@ public class ClientMain {
         try (
             Socket socket = new Socket(host, port);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true)
-        ) {
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) 
+            {
+
             System.out.println("Connected to server.");
 
             Thread readerThread = new Thread(() -> readServerMessages(in));
@@ -111,6 +112,7 @@ public class ClientMain {
         if (args.length >= 2) {
             try {
                 port = Integer.parseInt(args[1].trim());
+
             } catch (NumberFormatException ignored) {
             }
         }
@@ -122,6 +124,7 @@ public class ClientMain {
             String line;
             boolean readingState = false;
             boolean readingBuyable = false;
+
             StringBuilder stateBuffer = new StringBuilder();
             List<String> buyableBuffer = new ArrayList<>();
 
@@ -136,6 +139,7 @@ public class ClientMain {
                     readingState = false;
                     lastState = stateBuffer.toString();
                     clearScreen();
+                    
                     System.out.print(lastState);
                     if (!lastState.endsWith("\n")) {
                         System.out.println();
@@ -319,7 +323,7 @@ public class ClientMain {
         if (input.equals("3")) {
             return translateReserveCard(sc);
         }
-        if (input.equals("q")) {
+        if (input.equals("q") || input.equals("quit")) {
             return "QUIT";
         }
 

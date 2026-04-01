@@ -28,10 +28,12 @@ public class GameApp {
     // Game setup
     // -------------------------------------------------------------------------
 
+    //local
     public static Game setupGame(int numPlayers, boolean[] isAI) {
         return setupGame(numPlayers, isAI, null);
     }
 
+    //networkin
     public static Game setupGame(int numPlayers, boolean[] isAI, String[] playerNames) {
         List<Card> allCards = new ArrayList<>();
         try {

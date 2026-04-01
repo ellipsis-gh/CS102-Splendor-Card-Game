@@ -35,10 +35,12 @@ public class NetworkFormatter {
      * @param game    current game state
      * @param winScore prestige points needed to win
      */
+
     public static String formatGameState(Game game, int winScore) {
         return ConsoleUI.renderGameStateString(game, true, winScore);
     }
-
+    
+    //default version
     /** Backward-compatible overload — assumes default win score of 10. */
     public static String formatGameState(Game game) {
         return formatGameState(game, 10);

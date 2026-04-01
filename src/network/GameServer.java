@@ -21,12 +21,6 @@ public class GameServer {
     // In network mode, Player 1 can override this before game start.
     private static final int DEFAULT_WIN_SCORE = GameConfig.getWinningPoints();
 
-    //retrieving cards file path from config.properties
-    private static final String CARDS_FILEPATH = GameConfig.getCardFilePath();
-
-    //retrieving nobles file path from config.properties
-    private static final String NOBLES_FILEPATH = GameConfig.getNobleFilePath();
-
     public GameServer(int port) {
         this.port = port;
     }
@@ -54,11 +48,12 @@ public class GameServer {
     // the main strtup method for the server
     // it runs the ServerSocketand client for player1
     // it waits for player 2 to connect
-    // call runGame(client1, client2) once both players are ready.
+    // call  start() once both players are ready.
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started on port " + port);
             printLocalAddresses();
+            
             System.out.println("Clients: run run_client.bat and enter one of the IPs above");
             System.out.println("Waiting for Player 1...");
 
@@ -97,7 +92,7 @@ public class GameServer {
             System.out.println("Server error: " + e.getMessage());
         }
     }
-    //it creates the actual Game object by calling createGame()
+    //it creates the actual Game object by calling runGame()
     //it ends the latest board/player state to both clients using broadcastState()
 
     private void runGame(ClientHandler client1, ClientHandler client2) {
@@ -292,18 +287,6 @@ public class GameServer {
         client.send(NetworkFormatter.BUYABLE_END);
     }
 
-
-    private void sendMultiline(ClientHandler client, String text) {
-        if (text == null || text.isEmpty()) {
-            return;
-        }
-        // Preserve blank lines: split with limit -1 and send each line verbatim.
-        String[] lines = text.split("\\R", -1);
-        for (String line : lines) {
-            client.send(line);
-        }
-    }
-    
     //it sets up a Splendor match.
     private Game createGame(String player1Name, String player2Name) {
     boolean[] isAI = {false, false};
