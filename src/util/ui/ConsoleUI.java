@@ -73,6 +73,7 @@ public class ConsoleUI {
         clearScreen();
         System.out.println(bold("SPLENDOR") + dim("  ·  Setup"));
         System.out.println(dim("Choose the target prestige points to win."));
+        System.out.println(dim("Press enter to use default configured winning points. Current: " + defaultWinScore));
         System.out.println();
         return promptIntInline("Points to win", MIN_WIN_SCORE, MAX_WIN_SCORE,
                 clamp(defaultWinScore, MIN_WIN_SCORE, MAX_WIN_SCORE));
