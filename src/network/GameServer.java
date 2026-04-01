@@ -9,67 +9,48 @@ import java.util.Collections;
 import java.util.List;
 
 import config.GameConfig;
+import engine.GameEngine;
+import engine.GameSetup;
+import io.NetworkInputHandler;
 import logic.Game;
-import model.Player;
-import model.Token;
-import util.GameApp;
+import ui.NetworkGameRenderer;
 
+/**
+ * Manages TCP connections for a 2-player networked game.
+ *
+ * <p>Responsibilities: accept sockets, collect player names, run
+ * network-specific setup (win-score selection), then hand off to a
+ * {@link GameEngine} wired with {@link NetworkInputHandler} and
+ * {@link NetworkGameRenderer}. No game logic lives here.</p>
+ */
 public class GameServer {
-    private final int port;
 
-    // Default/fallback win score from config.properties.
-    // In network mode, Player 1 can override this before game start.
+    private final int port;
     private static final int DEFAULT_WIN_SCORE = GameConfig.getWinningPoints();
 
     public GameServer(int port) {
         this.port = port;
     }
-    //printlocal addressess is to know the server ip for the client to connect to the server
-    private void printLocalAddresses() {
-        System.out.println("Connect using one of these IPs:");
-        try {
-            System.out.println("  localhost / 127.0.0.1 (this machine only)");
-            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
-            for (NetworkInterface ni : interfaces) {
-                if (ni.isLoopback() || !ni.isUp()) continue;
-                for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
-                    if (addr.isLoopbackAddress()) continue;
-                    String host = addr.getHostAddress();
-                    if (host.contains("%")) host = host.split("%")[0];
-                    if (addr.getHostAddress().indexOf(':') < 0) {
-                        System.out.println("  " + host + " (port " + port + ")");
-                    }
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("  (could not enumerate: " + e.getMessage() + ")");
-        }
-    }
-    // the main strtup method for the server
-    // it runs the ServerSocketand client for player1
-    // it waits for player 2 to connect
-    // call  start() once both players are ready.
+
+    // -----------------------------------------------------------------------
+    // Startup
+    // -----------------------------------------------------------------------
+
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started on port " + port);
             printLocalAddresses();
-            
             System.out.println("Clients: run run_client.bat and enter one of the IPs above");
-            System.out.println("Waiting for Player 1...");
 
+            System.out.println("Waiting for Player 1...");
             Socket socket1 = serverSocket.accept();
             ClientHandler client1 = new ClientHandler(socket1);
             client1.send("Connected as Player 1.");
             client1.send("Enter your name:");
-
             String name1 = client1.readLine();
-            if (name1 == null || name1.isBlank()) {
-                name1 = "Player 1";
-            }
+            if (name1 == null || name1.isBlank()) name1 = "Player 1";
             client1.setPlayerName(name1);
-
             System.out.println(name1 + " connected.");
-
             client1.send("Waiting for Player 2...");
 
             System.out.println("Waiting for Player 2...");
@@ -77,13 +58,9 @@ public class GameServer {
             ClientHandler client2 = new ClientHandler(socket2);
             client2.send("Connected as Player 2.");
             client2.send("Enter your name:");
-
             String name2 = client2.readLine();
-            if (name2 == null || name2.isBlank()) {
-                name2 = "Player 2";
-            }
+            if (name2 == null || name2.isBlank()) name2 = "Player 2";
             client2.setPlayerName(name2);
-
             System.out.println(name2 + " connected.");
 
             runGame(client1, client2);
@@ -92,167 +69,72 @@ public class GameServer {
             System.out.println("Server error: " + e.getMessage());
         }
     }
-    //it creates the actual Game object by calling runGame()
-    //it ends the latest board/player state to both clients using broadcastState()
+
+    // -----------------------------------------------------------------------
+    // Game wiring
+    // -----------------------------------------------------------------------
 
     private void runGame(ClientHandler client1, ClientHandler client2) {
         try {
             int winScore = runNetworkSetup(client1, client2);
-            Game game = createGame(client1.getPlayerName(), client2.getPlayerName());
 
-            String hints = "Commands: TAKE3 <c> <c> <c>  |  TAKE2 <c>  |  BUY <lvl>-<slot>"
-                    + "  |  BUYR <idx>  |  RESERVE <lvl>-<slot>  |  RESERVEDECK <lvl>"
-                    + "  |  RETURN <c> <n>  |  QUIT";
+            Game game = GameSetup.create(
+                    2,
+                    new boolean[]{false, false},
+                    new String[]{client1.getPlayerName(), client2.getPlayerName()});
+
+            ClientHandler[] clients = {client1, client2};
+
             client1.send("Both players connected. Starting game...");
-            client1.send(hints);
             client2.send("Both players connected. Starting game...");
-            client2.send(hints);
             client1.send("Target score: " + winScore + " points.");
             client2.send("Target score: " + winScore + " points.");
 
-            boolean gameOver = false;
+            NetworkInputHandler input    = new NetworkInputHandler(clients, game);
+            NetworkGameRenderer renderer = new NetworkGameRenderer(clients, game);
 
-            while (!gameOver) {
-                Player current = game.getCurrentPlayer();
-                ClientHandler currentClient = current.getName().equals(client1.getPlayerName()) ? client1 : client2;
-                ClientHandler otherClient = currentClient == client1 ? client2 : client1;
-
-                broadcastState(game, client1, client2, winScore);
-                sendBuyableList(game, current, currentClient);
-
-                currentClient.send("--- YOUR TURN: " + current.getName() + " ---");
-                otherClient.send("WAITING FOR " + current.getName());
-
-                boolean validMove = false;
-                while (!validMove) {
-                    String command = currentClient.readLine();
-
-                    if (command == null) {
-                        otherClient.send(current.getName() + " disconnected. Game over.");
-                        client1.close();
-                        client2.close();
-                        return;
-                    }
-
-                    command = command.trim();
-
-                    if (command.equalsIgnoreCase("QUIT")) {
-                        currentClient.send("You quit the game.");
-                        otherClient.send(current.getName() + " quit the game.");
-                        client1.close();
-                        client2.close();
-                        return;
-                    }
-
-                    validMove = handleCommand(game, current, command, currentClient);
-
-                    if (!validMove) {
-                        currentClient.send("Invalid move. Try again.");
-                    }
-                }
-
-                enforceTokenLimit(game, current, currentClient, otherClient, winScore);
-
-                if (game.checkAndAwardNoble(current) != null) {
-                    currentClient.send("A noble visits you.");
-                    otherClient.send(current.getName() + " received a noble.");
-                }
-
-                if (current.getScore() >= winScore) {
-                    broadcastState(game, client1, client2, winScore);
-                    client1.send("WINNER: " + current.getName());
-                    client2.send("WINNER: " + current.getName());
-                    gameOver = true;
-                } else {
-                    game.nextTurn();
-                }
-            }
-
-            client1.close();
-            client2.close();
+            new GameEngine(game, input, renderer, winScore).run();
 
         } catch (Exception e) {
-            client1.send("Server game error: " + e.getMessage());
-            client2.send("Server game error: " + e.getMessage());
+            client1.send("Server error: " + e.getMessage());
+            client2.send("Server error: " + e.getMessage());
+        } finally {
             client1.close();
             client2.close();
         }
     }
-    // it makes sure the current player is not holding more than 10 tokens
-    private void enforceTokenLimit(Game game, Player player, ClientHandler currentClient, ClientHandler otherClient, int winScore)
-            throws IOException {
-        while (game.mustReturnTokens(player)) {
-            int mustReturn = game.getNumTokensToReturn(player);
-            broadcastState(game, currentClient, otherClient, winScore);
-            currentClient.send("TOKEN LIMIT: You have " + player.getTotalTokenCount() + " tokens (max 10).");
-            currentClient.send("Return " + mustReturn + " token(s) with: RETURN <color> <count>");
-            currentClient.send("Example: RETURN red 1");
-            otherClient.send("Waiting: " + player.getName() + " must return " + mustReturn + " token(s).");
 
-            boolean ok = false;
-            while (!ok) {
-                String line = currentClient.readLine();
-                if (line == null) {
-                    otherClient.send(player.getName() + " disconnected. Game over.");
-                    currentClient.close();
-                    otherClient.close();
-                    throw new IOException("Player disconnected");
-                }
-
-                line = line.trim();
-                if (line.equalsIgnoreCase("QUIT")) {
-                    currentClient.send("You quit the game.");
-                    otherClient.send(player.getName() + " quit the game.");
-                    currentClient.close();
-                    otherClient.close();
-                    throw new IOException("Player quit");
-                }
-
-                ok = handleReturnCommand(game, player, line, currentClient);
-                if (!ok) {
-                    currentClient.send("Invalid return. Use: RETURN <color> <count>");
-                }
-            }
-        }
-    }
-    //it print the current board and players info, then sends the same state to both clients.
-    private void broadcastState(Game game, ClientHandler c1, ClientHandler c2, int winScore) {
-        String stateText = NetworkFormatter.formatGameState(game, winScore);
-
-        sendState(c1, stateText);
-        sendState(c2, stateText);
-    }
+    // -----------------------------------------------------------------------
+    // Network-specific setup (win-score selection before game starts)
+    // -----------------------------------------------------------------------
 
     /**
-     * Network-only setup:
-     * - Player 1 selects the win condition.
-     * - Player 2 only acknowledges the start screen with Enter.
+     * Player 1 selects the winning score; Player 2 just acknowledges.
+     *
+     * @return the chosen win score
      */
     private int runNetworkSetup(ClientHandler player1, ClientHandler player2) throws IOException {
         sendSetupScreen(player1, "PLAYER 1 SETUP", "You choose the win condition for this match.");
         player1.send("SETUP:WIN_SCORE");
 
-        sendSetupScreen(player2, "PLAYER 2 READY", "Press Enter to continue and wait for Player 1 setup.");
+        sendSetupScreen(player2, "PLAYER 2 READY", "Press Enter to continue while Player 1 sets up.");
         player2.send("SETUP:START_ACK");
 
-        String readyLine = player2.readLine();
-        if (readyLine == null) throw new IOException("Player 2 disconnected during setup.");
+        // Player 2 just needs to acknowledge
+        if (player2.readLine() == null) throw new IOException("Player 2 disconnected during setup.");
 
+        // Player 1 picks a score
         int winScore = DEFAULT_WIN_SCORE;
         while (true) {
             String line = player1.readLine();
             if (line == null) throw new IOException("Player 1 disconnected during setup.");
-            line = line.trim();
-
             try {
-                int chosen = Integer.parseInt(line);
+                int chosen = Integer.parseInt(line.trim());
                 if (chosen >= 5 && chosen <= 30) {
                     winScore = chosen;
                     break;
                 }
-            } catch (NumberFormatException ignored) {
-            }
-
+            } catch (NumberFormatException ignored) {}
             player1.send("Invalid score. Enter a number from 5 to 30.");
             player1.send("SETUP:WIN_SCORE");
         }
@@ -270,161 +152,28 @@ public class GameServer {
         client.send("└──────────────────────────────────────────────────────────┘");
     }
 
+    // -----------------------------------------------------------------------
+    // Network info
+    // -----------------------------------------------------------------------
 
-    private void sendState(ClientHandler client, String stateText) {
-        client.send(NetworkFormatter.STATE_BEGIN);
-        for (String line : stateText.split("\n")) {
-            client.send(line);
-        }
-        client.send(NetworkFormatter.STATE_END);
-    }
-
-    private void sendBuyableList(Game game, Player player, ClientHandler client) {
-        client.send(NetworkFormatter.BUYABLE_BEGIN);
-        for (String tag : GameApp.getBuyableSlotTags(game, player)) {
-            client.send(tag);
-        }
-        client.send(NetworkFormatter.BUYABLE_END);
-    }
-
-    //it sets up a Splendor match.
-    private Game createGame(String player1Name, String player2Name) {
-    boolean[] isAI = {false, false};
-    String[] playerNames = {player1Name, player2Name};
-    return GameApp.setupGame(2, isAI, playerNames);
-}
-
-
-    // it parses and executes the main turn commands entered by the player.
-    private boolean handleCommand(Game game, Player p, String command, ClientHandler client) {
-        String[] parts = command.split("\\s+");
-        if (parts.length == 0) {
-            return false;
-        }
-
+    private void printLocalAddresses() {
+        System.out.println("Connect using one of these IPs:");
         try {
-            switch (parts[0].toUpperCase()) {
-                case "TAKE3":
-                    if (parts.length != 4) return false;
-                    Token t1 = parseToken(parts[1]);
-                    Token t2 = parseToken(parts[2]);
-                    Token t3 = parseToken(parts[3]);
-
-                    if (t1 == null || t2 == null || t3 == null) return false;
-                    if (!game.canTakeThreeDifferentGems(p, t1, t2, t3)) return false;
-
-                    game.takeThreeDifferentGems(p, t1, t2, t3);
-                    client.send("OK: Took " + t1 + " " + t2 + " " + t3);
-                    return true;
-
-                case "TAKE2":
-                    if (parts.length != 2) return false;
-                    Token t = parseToken(parts[1]);
-
-                    if (t == null || !game.canTakeTwoSameGems(p, t)) return false;
-
-                    game.takeTwoSameGems(p, t);
-                    client.send("OK: Took 2 " + t);
-                    return true;
-
-                case "BUY":
-                    if (parts.length != 2) return false;
-                    String[] buyParts = parts[1].split("-");
-                    if (buyParts.length != 2) return false;
-
-                    int level = Integer.parseInt(buyParts[0]);
-                    int slot = Integer.parseInt(buyParts[1]);
-
-                    if (!game.canBuyVisibleCard(p, level, slot)) return false;
-
-                    game.buyVisibleCard(p, level, slot);
-                    client.send("OK: Bought visible card.");
-                    return true;
-
-                case "BUYR":
-                    if (parts.length != 2) return false;
-                    int reservedIndex = Integer.parseInt(parts[1]);
-
-                    if (!game.canBuyReservedCard(p, reservedIndex)) return false;
-
-                    game.buyReservedCard(p, reservedIndex);
-                    client.send("OK: Bought reserved card.");
-                    return true;
-
-                case "RESERVE":
-                    if (parts.length != 2) return false;
-                    String[] reserveParts = parts[1].split("-");
-                    if (reserveParts.length != 2) return false;
-
-                    int reserveLevel = Integer.parseInt(reserveParts[0]);
-                    int reserveSlot = Integer.parseInt(reserveParts[1]);
-
-                    if (!game.canReserveVisibleCard(p, reserveLevel, reserveSlot)) return false;
-
-                    game.reserveVisibleCard(p, reserveLevel, reserveSlot);
-                    client.send("OK: Reserved visible card.");
-                    return true;
-
-                case "RESERVEDECK":
-                    if (parts.length != 2) return false;
-                    int deckLevel = Integer.parseInt(parts[1]);
-                    if (!game.canReserveDeckCard(p, deckLevel)) return false;
-                    game.reserveDeckCard(p, deckLevel);
-                    client.send("OK: Reserved deck card.");
-                    return true;
-
-                default:
-                    return false;
+            System.out.println("  localhost / 127.0.0.1 (this machine only)");
+            List<NetworkInterface> ifaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface ni : ifaces) {
+                if (ni.isLoopback() || !ni.isUp()) continue;
+                for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
+                    if (addr.isLoopbackAddress()) continue;
+                    String host = addr.getHostAddress();
+                    if (host.contains("%")) host = host.split("%")[0];
+                    if (!host.contains(":")) { // skip IPv6
+                        System.out.println("  " + host + " (port " + port + ")");
+                    }
+                }
             }
         } catch (Exception e) {
-            client.send("ERROR: " + e.getMessage());
-            return false;
+            System.out.println("  (could not enumerate: " + e.getMessage() + ")");
         }
-    }
-    // Similar idea to handleCommand(), but only for return command and  used when the player has too many tokens.
-    private boolean handleReturnCommand(Game game, Player p, String line, ClientHandler client) {
-        String[] parts = line.split("\\s+");
-        if (parts.length != 3) return false;
-        if (!"RETURN".equalsIgnoreCase(parts[0])) return false;
-
-        Token token = parseTokenAllowGold(parts[1]);
-        if (token == null) return false;
-
-        int count;
-        try {
-            count = Integer.parseInt(parts[2]);
-        } catch (NumberFormatException e) {
-            return false;
-        }
-        if (count <= 0) return false;
-
-        int have = p.getTokens().getOrDefault(token, 0);
-        if (have < count) return false;
-
-        int mustReturn = game.getNumTokensToReturn(p);
-        if (count > mustReturn) return false;
-
-        game.returnToken(p, token, count);
-        client.send("OK: Returned " + count + " " + token);
-        return true;
-    }
-    // it Converts a text color like "red" or "blue" into the matching Token enum.
-    private Token parseToken(String s) {
-        if (s == null) return null;
-
-        switch (s.toLowerCase()) {
-            case "green": return Token.GREEN;
-            case "white": return Token.WHITE;
-            case "blue": return Token.BLUE;
-            case "black": return Token.BLACK;
-            case "red": return Token.RED;
-            default: return null;
-        }
-    }
-    //Same idea as parseToken(), but to accepts "gold".
-    private Token parseTokenAllowGold(String s) {
-        if (s == null) return null;
-        if ("gold".equalsIgnoreCase(s)) return Token.GOLD;
-        return parseToken(s);
     }
 }
