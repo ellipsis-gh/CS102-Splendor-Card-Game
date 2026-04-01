@@ -17,8 +17,9 @@ import util.GameApp;
 public class GameServer {
     private final int port;
 
-    //retrieving points from config.properties
-    private static final int WIN_SCORE = GameConfig.getWinningPoints();
+    // Default/fallback win score from config.properties.
+    // In network mode, Player 1 can override this before game start.
+    private static final int DEFAULT_WIN_SCORE = GameConfig.getWinningPoints();
 
     //retrieving cards file path from config.properties
     private static final String CARDS_FILEPATH = GameConfig.getCardFilePath();
@@ -101,6 +102,7 @@ public class GameServer {
 
     private void runGame(ClientHandler client1, ClientHandler client2) {
         try {
+            int winScore = runNetworkSetup(client1, client2);
             Game game = createGame(client1.getPlayerName(), client2.getPlayerName());
 
             String hints = "Commands: TAKE3 <c> <c> <c>  |  TAKE2 <c>  |  BUY <lvl>-<slot>"
@@ -110,6 +112,8 @@ public class GameServer {
             client1.send(hints);
             client2.send("Both players connected. Starting game...");
             client2.send(hints);
+            client1.send("Target score: " + winScore + " points.");
+            client2.send("Target score: " + winScore + " points.");
 
             boolean gameOver = false;
 
@@ -118,7 +122,7 @@ public class GameServer {
                 ClientHandler currentClient = current.getName().equals(client1.getPlayerName()) ? client1 : client2;
                 ClientHandler otherClient = currentClient == client1 ? client2 : client1;
 
-                broadcastState(game, client1, client2);
+                broadcastState(game, client1, client2, winScore);
                 sendBuyableList(game, current, currentClient);
 
                 currentClient.send("--- YOUR TURN: " + current.getName() + " ---");
@@ -152,15 +156,15 @@ public class GameServer {
                     }
                 }
 
-                enforceTokenLimit(game, current, currentClient, otherClient);
+                enforceTokenLimit(game, current, currentClient, otherClient, winScore);
 
                 if (game.checkAndAwardNoble(current) != null) {
                     currentClient.send("A noble visits you.");
                     otherClient.send(current.getName() + " received a noble.");
                 }
 
-                if (current.getScore() >= WIN_SCORE) {
-                    broadcastState(game, client1, client2);
+                if (current.getScore() >= winScore) {
+                    broadcastState(game, client1, client2, winScore);
                     client1.send("WINNER: " + current.getName());
                     client2.send("WINNER: " + current.getName());
                     gameOver = true;
@@ -180,11 +184,11 @@ public class GameServer {
         }
     }
     // it makes sure the current player is not holding more than 10 tokens
-    private void enforceTokenLimit(Game game, Player player, ClientHandler currentClient, ClientHandler otherClient)
+    private void enforceTokenLimit(Game game, Player player, ClientHandler currentClient, ClientHandler otherClient, int winScore)
             throws IOException {
         while (game.mustReturnTokens(player)) {
             int mustReturn = game.getNumTokensToReturn(player);
-            broadcastState(game, currentClient, otherClient);
+            broadcastState(game, currentClient, otherClient, winScore);
             currentClient.send("TOKEN LIMIT: You have " + player.getTotalTokenCount() + " tokens (max 10).");
             currentClient.send("Return " + mustReturn + " token(s) with: RETURN <color> <count>");
             currentClient.send("Example: RETURN red 1");
@@ -217,11 +221,58 @@ public class GameServer {
         }
     }
     //it print the current board and players info, then sends the same state to both clients.
-    private void broadcastState(Game game, ClientHandler c1, ClientHandler c2) {
-        String stateText = NetworkFormatter.formatGameState(game, WIN_SCORE);
+    private void broadcastState(Game game, ClientHandler c1, ClientHandler c2, int winScore) {
+        String stateText = NetworkFormatter.formatGameState(game, winScore);
 
         sendState(c1, stateText);
         sendState(c2, stateText);
+    }
+
+    /**
+     * Network-only setup:
+     * - Player 1 selects the win condition.
+     * - Player 2 only acknowledges the start screen with Enter.
+     */
+    private int runNetworkSetup(ClientHandler player1, ClientHandler player2) throws IOException {
+        sendSetupScreen(player1, "PLAYER 1 SETUP", "You choose the win condition for this match.");
+        player1.send("SETUP:WIN_SCORE");
+
+        sendSetupScreen(player2, "PLAYER 2 READY", "Press Enter to continue and wait for Player 1 setup.");
+        player2.send("SETUP:START_ACK");
+
+        String readyLine = player2.readLine();
+        if (readyLine == null) throw new IOException("Player 2 disconnected during setup.");
+
+        int winScore = DEFAULT_WIN_SCORE;
+        while (true) {
+            String line = player1.readLine();
+            if (line == null) throw new IOException("Player 1 disconnected during setup.");
+            line = line.trim();
+
+            try {
+                int chosen = Integer.parseInt(line);
+                if (chosen >= 5 && chosen <= 30) {
+                    winScore = chosen;
+                    break;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+
+            player1.send("Invalid score. Enter a number from 5 to 30.");
+            player1.send("SETUP:WIN_SCORE");
+        }
+
+        player1.send("Win condition set to " + winScore + " points.");
+        player2.send("Player 1 set win condition to " + winScore + " points.");
+        return winScore;
+    }
+
+    private void sendSetupScreen(ClientHandler client, String title, String body) {
+        client.send("┌──────────────────────────────────────────────────────────┐");
+        client.send("│ " + title);
+        client.send("├──────────────────────────────────────────────────────────┤");
+        client.send("│ " + body);
+        client.send("└──────────────────────────────────────────────────────────┘");
     }
 
 

@@ -14,6 +14,7 @@ import java.util.Set;
 import org.fusesource.jansi.AnsiConsole;
 
 import util.AnsiSupport;
+import util.SplashScreen;
 
 /**
  * Network client for the multiplayer game.
@@ -34,6 +35,8 @@ public class ClientMain {
     private enum InputMode {
         NONE,
         NAME,
+        START_ACK,
+        WIN_SCORE,
         TURN,
         RETURN
     }
@@ -46,6 +49,11 @@ public class ClientMain {
     public static void main(String[] args) {
         AnsiConsole.systemInstall();
         Scanner sc = new Scanner(System.in);
+
+        // Show the ASCII title screen before connection prompts.
+        SplashScreen.client();
+        System.out.print("Press Enter to continue...");
+        if (sc.hasNextLine()) sc.nextLine();
 
         String host = getHost(args, sc);
         int port = getPort(args);
@@ -69,6 +77,10 @@ public class ClientMain {
 
                 if (currentMode == InputMode.NAME) {
                     handleNameInput(sc, out);
+                } else if (currentMode == InputMode.START_ACK) {
+                    handleStartAckInput(sc, out);
+                } else if (currentMode == InputMode.WIN_SCORE) {
+                    handleWinScoreInput(sc, out);
                 } else if (currentMode == InputMode.TURN) {
                     handleTurnInput(sc, out);
                 } else if (currentMode == InputMode.RETURN) {
@@ -169,6 +181,10 @@ public class ClientMain {
     private static void updateModeFromServerMessage(String line) {
         if (line.equalsIgnoreCase("Enter your name:")) {
             currentMode = InputMode.NAME;
+        } else if (line.equalsIgnoreCase("SETUP:START_ACK")) {
+            currentMode = InputMode.START_ACK;
+        } else if (line.equalsIgnoreCase("SETUP:WIN_SCORE")) {
+            currentMode = InputMode.WIN_SCORE;
         } else if (line.startsWith("--- YOUR TURN")) {
             currentMode = InputMode.TURN;
         } else if (line.startsWith("Invalid move")) {
@@ -190,6 +206,35 @@ public class ClientMain {
         String name = sc.nextLine().trim();
         out.println(name.isBlank() ? "Player" : name);
         currentMode = InputMode.NONE;
+    }
+
+    // Player 2 setup path: just acknowledge the start screen and wait.
+    private static void handleStartAckInput(Scanner sc, PrintWriter out) {
+        System.out.print("Press Enter to continue...");
+        if (!sc.hasNextLine()) {
+            connected = false;
+            return;
+        }
+        sc.nextLine();
+        out.println("READY");
+        currentMode = InputMode.NONE;
+    }
+
+    // Player 1 setup path: select the win condition for this match.
+    private static void handleWinScoreInput(Scanner sc, PrintWriter out) {
+        printWinScoreBox();
+        while (connected) {
+            System.out.print("Choice (5-30, Enter for default 15): ");
+            if (!sc.hasNextLine()) {
+                connected = false;
+                return;
+            }
+            String line = sc.nextLine().trim();
+            if (line.isEmpty()) line = "15";
+            out.println(line);
+            currentMode = InputMode.NONE;
+            return;
+        }
     }
 
     private static void handleTurnInput(Scanner sc, PrintWriter out) {
@@ -244,12 +289,24 @@ public class ClientMain {
     }
 
     private static void printActionMenu() {
-        System.out.println("Choose your move:");
-        System.out.println("  [1] Take gems");
-        System.out.println("  [2] Buy a card");
-        System.out.println("  [3] Reserve a card");
-        System.out.println("  [Q] Quit");
+        System.out.println("┌───────────────────────────────┐");
+        System.out.println("│ Choose Your Move              │");
+        System.out.println("├───────────────────────────────┤");
+        System.out.println("│ [1] Take gems                 │");
+        System.out.println("│ [2] Buy a card                │");
+        System.out.println("│ [3] Reserve a card            │");
+        System.out.println("│ [Q] Quit                      │");
+        System.out.println("└───────────────────────────────┘");
         System.out.print("Choice: ");
+    }
+
+    private static void printWinScoreBox() {
+        System.out.println("┌───────────────────────────────┐");
+        System.out.println("│ Player 1 Setup                │");
+        System.out.println("├───────────────────────────────┤");
+        System.out.println("│ Select points needed to win.  │");
+        System.out.println("│ Allowed range: 5 to 30        │");
+        System.out.println("└───────────────────────────────┘");
     }
 
     private static String translateTopLevelChoice(String input, Scanner sc) {

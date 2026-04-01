@@ -1,5 +1,6 @@
 package network;
 
+import util.SplashScreen;
 
 // it reads the port number from the command-line arguments, or uses 5000 by default
 // it creates a GameServer
@@ -18,6 +19,8 @@ public final class ServerMain {
             }
         }
 
+        // Show a server-themed ASCII splash before opening the socket.
+        SplashScreen.server(2, port);
         new GameServer(port).start();
     }
 }
