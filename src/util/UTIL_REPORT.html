@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>src/util Report</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f1e8;
+      --panel: #fffdf8;
+      --panel-strong: #f0e7d8;
+      --ink: #1f1f1a;
+      --muted: #615b4d;
+      --line: #d4c7b0;
+      --accent: #9f3d22;
+      --accent-soft: #f6d8c8;
+      --code: #2a241d;
+      --shadow: 0 18px 50px rgba(74, 52, 28, 0.12);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background:
+        radial-gradient(circle at top right, rgba(159, 61, 34, 0.14), transparent 26rem),
+        linear-gradient(180deg, #f7f1e7 0%, #f1eadc 100%);
+      color: var(--ink);
+    }
+    .layout { display: grid; grid-template-columns: 20rem minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky; top: 0; align-self: start; height: 100vh; padding: 1.4rem 1.1rem;
+      background: rgba(255, 253, 248, 0.9); border-right: 1px solid var(--line); backdrop-filter: blur(10px); overflow: auto;
+    }
+    .brand {
+      margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(240,231,216,0.95)); box-shadow: var(--shadow);
+    }
+    .eyebrow { margin: 0 0 0.35rem; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; color: var(--accent); font-weight: 700; }
+    h1 { margin: 0; font-size: 1.6rem; line-height: 1.05; }
+    .subtitle { margin: 0.55rem 0 0; color: var(--muted); font-size: 0.95rem; line-height: 1.45; }
+    .search-wrap { margin: 1rem 0 0.6rem; }
+    #search {
+      width: 100%; padding: 0.85rem 0.95rem; border-radius: 999px; border: 1px solid var(--line);
+      background: #fff; color: var(--ink); font: inherit; outline: none;
+    }
+    #search:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(159, 61, 34, 0.12); }
+    .meta { display: flex; justify-content: space-between; gap: 0.75rem; margin: 0.3rem 0 1rem; font-size: 0.82rem; color: var(--muted); }
+    #clear-search {
+      border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 0.35rem 0.8rem;
+      font: inherit; cursor: pointer; color: var(--ink);
+    }
+    .toc { display: grid; gap: 0.35rem; }
+    .toc a {
+      text-decoration: none; color: var(--ink); padding: 0.45rem 0.65rem; border-radius: 12px;
+      line-height: 1.35; border: 1px solid transparent;
+    }
+    .toc a:hover, .toc a:focus-visible { background: var(--accent-soft); border-color: rgba(159, 61, 34, 0.18); outline: none; }
+    .toc a.level-3 { margin-left: 0.8rem; font-size: 0.92rem; color: var(--muted); }
+    .content { padding: 2rem; }
+    .hero {
+      padding: 1.3rem 1.4rem; border: 1px solid var(--line); border-radius: 24px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(246,216,200,0.62)); box-shadow: var(--shadow); margin-bottom: 1.5rem;
+    }
+    .hero p { margin: 0.4rem 0 0; color: var(--muted); max-width: 68ch; line-height: 1.6; }
+    .cards { display: grid; gap: 1rem; }
+    .section-card {
+      padding: 1.3rem 1.45rem; border: 1px solid var(--line); border-radius: 22px;
+      background: rgba(255, 253, 248, 0.96); box-shadow: var(--shadow);
+    }
+    .section-card[hidden] { display: none; }
+    .section-card h2, .section-card h3 { scroll-margin-top: 1.2rem; }
+    .section-card h2 { margin: 0 0 1rem; font-size: 1.5rem; line-height: 1.2; color: #40261b; }
+    .section-card h3 { margin: 1.35rem 0 0.55rem; font-size: 1.02rem; letter-spacing: 0.01em; color: var(--accent); }
+    .section-card p, .section-card li { font-size: 0.98rem; line-height: 1.7; }
+    .section-card p { margin: 0.45rem 0; }
+    .section-card ul, .section-card ol { margin: 0.3rem 0 0.8rem 1.4rem; padding: 0; }
+    .section-card hr { border: 0; border-top: 1px solid var(--line); margin: 1.2rem 0; }
+    code {
+      font-family: Consolas, "Courier New", monospace; font-size: 0.92em; color: var(--code);
+      background: rgba(159, 61, 34, 0.08); padding: 0.12rem 0.34rem; border-radius: 0.35rem;
+    }
+    .empty {
+      display: none; padding: 1.5rem; border: 1px dashed var(--line); border-radius: 20px;
+      background: rgba(255,255,255,0.6); color: var(--muted);
+    }
+    .empty.show { display: block; }
+    .footer { margin-top: 1rem; color: var(--muted); font-size: 0.85rem; }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .content { padding-top: 1.25rem; }
+    }
+    @media (max-width: 700px) {
+      .content, .sidebar { padding: 1rem; }
+      .section-card, .brand, .hero { border-radius: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <p class="eyebrow">Study Guide</p>
+        <h1>`src/util` Report</h1>
+        <p class="subtitle">Search by file name, method name, class, concept, or explanation. The page filters entire sections while keeping anchors and navigation intact.</p>
+      </div>
+      <div class="search-wrap">
+        <input id="search" type="search" placeholder="Search files, methods, concepts..." autocomplete="off">
+      </div>
+      <div class="meta">
+        <span id="match-count">0 sections</span>
+        <button id="clear-search" type="button">Clear</button>
+      </div>
+      <nav class="toc" id="toc"><a class="level-2" href="#overview">Overview</a>
+<a class="level-2" href="#big-picture">Big Picture</a>
+<a class="level-2" href="#file-ansisupport-java">File: `AnsiSupport.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#class-design">Class design</a>
+<a class="level-3" href="#function-issupported">Function: isSupported()</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#why-it-is-written-this-way">Why it is written this way</a>
+<a class="level-3" href="#key-oral-explanation">Key oral explanation</a>
+<a class="level-2" href="#file-gameapp-java">File: `GameApp.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#constants">Constants</a>
+<a class="level-3" href="#default-win-score">DEFAULT_WIN_SCORE</a>
+<a class="level-3" href="#cards-filepath">CARDS_FILEPATH</a>
+<a class="level-3" href="#nobles-filepath">NOBLES_FILEPATH</a>
+<a class="level-3" href="#function-setupgame-int-numplayers-boolean-isai">Function: setupGame(int numPlayers, boolean[] isAI)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#why-it-exists">Why it exists</a>
+<a class="level-3" href="#function-setupgame-int-numplayers-boolean-isai-string-playernames">Function: setupGame(int numPlayers, boolean[] isAI, String[] playerNames)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#step-by-step-behavior">Step-by-step behavior</a>
+<a class="level-3" href="#important-design-points">Important design points</a>
+<a class="level-3" href="#potential-professor-question">Potential professor question</a>
+<a class="level-3" href="#function-rungameloop-game-game-scanner-sc-consoleui-ui">Function: runGameLoop(Game game, Scanner sc, ConsoleUI ui)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-rungameloop-game-game-scanner-sc-consoleui-ui-int-winscore">Function: runGameLoop(Game game, Scanner sc, ConsoleUI ui, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#high-level-flow">High-level flow</a>
+<a class="level-3" href="#human-turn-handling">Human turn handling</a>
+<a class="level-3" href="#ai-turn-handling">AI turn handling</a>
+<a class="level-3" href="#endgame-logic">Endgame logic</a>
+<a class="level-3" href="#function-printactionmenu-player-p">Function: printActionMenu(Player p)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#important-note">Important note</a>
+<a class="level-3" href="#function-dotakegems-game-game-player-p-scanner-sc">Function: doTakeGems(Game game, Player p, Scanner sc)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#why-this-is-important">Why this is important</a>
+<a class="level-3" href="#function-getbuyableslottags-game-game-player-p">Function: getBuyableSlotTags(Game game, Player p)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#output-format">Output format</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#why-it-matters">Why it matters</a>
+<a class="level-3" href="#function-dobuycard-game-game-player-p-scanner-sc">Function: doBuyCard(Game game, Player p, Scanner sc)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#why-the-runnable-design-is-good">Why the Runnable design is good</a>
+<a class="level-3" href="#formatting-behavior">Formatting behavior</a>
+<a class="level-3" href="#function-doreservecard-game-game-player-p-scanner-sc">Function: doReserveCard(Game game, Player p, Scanner sc)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#design-notes">Design notes</a>
+<a class="level-3" href="#function-returnexcesstokens-game-game-player-p-scanner-sc">Function: returnExcessTokens(Game game, Player p, Scanner sc)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#why-it-is-written-this-way">Why it is written this way</a>
+<a class="level-3" href="#function-doaiturn-game-game-player-p">Function: doAITurn(Game game, Player p)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#input-source">Input source</a>
+<a class="level-3" href="#expected-action-formats">Expected action formats</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#important-oral-point">Important oral point</a>
+<a class="level-3" href="#function-returnexcesstokensai-game-game-player-p">Function: returnExcessTokensAI(Game game, Player p)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#design-point">Design point</a>
+<a class="level-3" href="#function-checknoblevisit-game-game-player-p">Function: checkNobleVisit(Game game, Player p)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#function-printline-string-ch-int-len">Function: printLine(String ch, int len)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-tokenlabel-token-token">Function: tokenLabel(Token token)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#why-it-exists">Why it exists</a>
+<a class="level-3" href="#function-formatcardshort-card-c">Function: formatCardShort(Card c)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#example-shape">Example shape</a>
+<a class="level-3" href="#function-readline-scanner-sc">Function: readLine(Scanner sc)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#why-that-matters">Why that matters</a>
+<a class="level-2" href="#file-splashscreen-java">File: `SplashScreen.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#constants">Constants</a>
+<a class="level-3" href="#function-local">Function: local()</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-server-int-numplayers-int-port">Function: server(int numPlayers, int port)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-client">Function: client()</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-render-boolean-ansi-string-modeline-string-detailline">Function: render(boolean ansi, String modeLine, String detailLine)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#design-strengths">Design strengths</a>
+<a class="level-3" href="#function-gemlegend-boolean-ansi">Function: gemLegend(boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-centred-string-text-int-width-boolean-ansi">Function: centred(String text, int width, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#key-detail">Key detail</a>
+<a class="level-3" href="#function-vislen-string-s">Function: visLen(String s)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-println-string-s">Function: println(String s)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#why-it-may-exist">Why it may exist</a>
+<a class="level-3" href="#function-clearscreen-boolean-ansi">Function: clearScreen(boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-2" href="#file-ui-consoleansi-java">File: `ui/ConsoleAnsi.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#constants">Constants</a>
+<a class="level-3" href="#function-bold-string-text-boolean-ansi">Function: bold(String text, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-dim-string-text-boolean-ansi">Function: dim(String text, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-tokenshortlabel-token-token">Function: tokenShortLabel(Token token)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-tokenlabel-token-token">Function: tokenLabel(Token token)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-colorizetoken-token-token-string-text-boolean-ansi">Function: colorizeToken(Token token, String text, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#why-it-is-important">Why it is important</a>
+<a class="level-3" href="#function-gemchip-token-token-boolean-ansi">Function: gemChip(Token token, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-gembordercolor-token-token">Function: gemBorderColor(Token token)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#why-it-exists">Why it exists</a>
+<a class="level-2" href="#file-ui-consoleboxes-java">File: `ui/ConsoleBoxes.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-bordertop-int-innerwidth-string-bordercolor-boolean-ansi">Function: borderTop(int innerWidth, String borderColor, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-borderbottom-int-innerwidth-string-bordercolor-boolean-ansi">Function: borderBottom(int innerWidth, String borderColor, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-borderleft-string-bordercolor-boolean-ansi">Function: borderLeft(String borderColor, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-borderright-string-bordercolor-boolean-ansi">Function: borderRight(String borderColor, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-joinboxessidebyside-list-lt-list-lt-string-gt-gt-boxes">Function: joinBoxesSideBySide(List&amp;lt;List&amp;lt;String&amp;gt;&amp;gt; boxes)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#important-logic">Important logic</a>
+<a class="level-3" href="#why-it-is-necessary">Why it is necessary</a>
+<a class="level-3" href="#function-renderboxesgrid-list-lt-list-lt-string-gt-gt-boxes-int-columns">Function: renderBoxesGrid(List&amp;lt;List&amp;lt;String&amp;gt;&amp;gt; boxes, int columns)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#typical-uses">Typical uses</a>
+<a class="level-2" href="#file-ui-consoleconstants-java">File: `ui/ConsoleConstants.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#constants">Constants</a>
+<a class="level-3" href="#max-reserved">MAX_RESERVED</a>
+<a class="level-3" href="#width-constants">Width constants</a>
+<a class="level-3" href="#border-glyph-constants">Border glyph constants</a>
+<a class="level-3" href="#cost-order">COST_ORDER</a>
+<a class="level-3" href="#why-fixed-ordering-matters">Why fixed ordering matters</a>
+<a class="level-2" href="#file-ui-consolegameoverview-java">File: `ui/ConsoleGameOverView.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-rendergameoverstring-game-game-boolean-ansi-int-winscore">Function: renderGameOverString(Game game, boolean ansi, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#why-this-design-is-good">Why this design is good</a>
+<a class="level-3" href="#function-rendergameoverbanner-game-game-boolean-ansi-int-winscore">Function: renderGameOverBanner(Game game, boolean ansi, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#important-oral-point">Important oral point</a>
+<a class="level-2" href="#file-ui-consolegamestateview-java">File: `ui/ConsoleGameStateView.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-rendergamestatestring-game-game-boolean-ansi-int-winscore">Function: renderGameStateString(Game game, boolean ansi, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#main-sections-in-output-order">Main sections in output order</a>
+<a class="level-3" href="#detailed-logic">Detailed logic</a>
+<a class="level-3" href="#why-it-is-good-architecture">Why it is good architecture</a>
+<a class="level-2" href="#file-ui-consolemarketview-java">File: `ui/ConsoleMarketView.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-buildmarketrowstring-int-level-card-row-boolean-ansi">Function: buildMarketRowString(int level, Card[] row, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#why-precomputing-matters">Why precomputing matters</a>
+<a class="level-3" href="#function-computewrappedcostchunks-card-card-int-inner-boolean-ansi">Function: computeWrappedCostChunks(Card card, int inner, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#function-rendercardbox-string-id-card-card-boolean-ansi-list-lt-string-gt-costchunks-int-maxcostlines">Function: renderCardBox(String id, Card card, boolean ansi, List&amp;lt;String&amp;gt; costChunks, int maxCostLines)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic-for-non-null-card">Logic for non-null card</a>
+<a class="level-3" href="#logic-for-null-card">Logic for null card</a>
+<a class="level-3" href="#important-design-point">Important design point</a>
+<a class="level-2" href="#file-ui-consolenobleview-java">File: `ui/ConsoleNobleView.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-rendernoblessection-list-lt-noble-gt-nobles-player-currentplayer-boolean-ansi">Function: renderNoblesSection(List&amp;lt;Noble&amp;gt; nobles, Player currentPlayer, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#function-rendernoblebox-int-index-noble-noble-player-currentplayer-boolean-ansi">Function: renderNobleBox(int index, Noble noble, Player currentPlayer, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#content">Content</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#important-oral-point">Important oral point</a>
+<a class="level-2" href="#file-ui-consoleplayerview-java">File: `ui/ConsolePlayerView.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-renderplayersgrid-list-lt-player-gt-players-int-currentindex-int-winscore-int-leaderscore-boolean-ansi">Function: renderPlayersGrid(List&amp;lt;Player&amp;gt; players, int currentIndex, int winScore, int leaderScore, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#layout-rule">Layout rule</a>
+<a class="level-3" href="#function-renderplayerbox-int-index-player-player-boolean-iscurrent-int-winscore-int-leaderscore-boolean-ansi">Function: renderPlayerBox(int index, Player player, boolean isCurrent, int winScore, int leaderScore, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#content">Content</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#why-fixed-width-token-formatting-matters">Why fixed-width token formatting matters</a>
+<a class="level-2" href="#file-ui-consolerenderer-java">File: `ui/ConsoleRenderer.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#why-this-matters">Why this matters</a>
+<a class="level-3" href="#function-rendergamestatestring-game-game-boolean-ansi-int-winscore">Function: renderGameStateString(Game game, boolean ansi, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-rendergameoverstring-game-game-boolean-ansi-int-winscore">Function: renderGameOverString(Game game, boolean ansi, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-renderreservedcardsstring-player-player-boolean-ansi">Function: renderReservedCardsString(Player player, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-formatcostcompactstatic-map-lt-token-integer-gt-cost">Function: formatCostCompactStatic(Map&amp;lt;Token, Integer&amp;gt; cost)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-rendergamestatestring-game-game-boolean-ansi">Function: renderGameStateString(Game game, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#why-the-class-is-useful">Why the class is useful</a>
+<a class="level-2" href="#file-ui-consolereservedview-java">File: `ui/ConsoleReservedView.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-renderreservedcardsstring-player-player-boolean-ansi">Function: renderReservedCardsString(Player player, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#content">Content</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#important-oral-point">Important oral point</a>
+<a class="level-2" href="#file-ui-consolescoreview-java">File: `ui/ConsoleScoreView.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-maxscore-list-lt-player-gt-players">Function: maxScore(List&amp;lt;Player&amp;gt; players)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-renderscoressummary-list-lt-player-gt-players-int-currentindex-int-winscore-int-leaderscore-boolean-ansi">Function: renderScoresSummary(List&amp;lt;Player&amp;gt; players, int currentIndex, int winScore, int leaderScore, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#output-style">Output style</a>
+<a class="level-3" href="#highlight-rules">Highlight rules</a>
+<a class="level-3" href="#function-renderscorebadge-int-score-int-winscore-int-towin-boolean-iscurrent-boolean-isleader-boolean-ansi">Function: renderScoreBadge(int score, int winScore, int toWin, boolean isCurrent, boolean isLeader, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#output-content">Output content</a>
+<a class="level-3" href="#highlight-rules">Highlight rules</a>
+<a class="level-3" href="#why-this-class-is-separate">Why this class is separate</a>
+<a class="level-2" href="#file-ui-consoletext-java">File: `ui/ConsoleText.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-stripansi-string-s">Function: stripAnsi(String s)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-vislen-string-s">Function: visLen(String s)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-padright-string-s-int-width">Function: padRight(String s, int width)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-truncatevisible-string-s-int-width">Function: truncateVisible(String s, int width)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#important-logic">Important logic</a>
+<a class="level-3" href="#why-this-is-hard">Why this is hard</a>
+<a class="level-3" href="#function-fitline-string-s-int-width">Function: fitLine(String s, int width)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-rightmarkerline-string-left-string-right-int-innerwidth">Function: rightMarkerLine(String left, String right, int innerWidth)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#use-cases">Use cases</a>
+<a class="level-3" href="#function-centerline-string-text-int-width">Function: centerLine(String text, int width)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-wrapbyspaces-string-text-int-width">Function: wrapBySpaces(String text, int width)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#function-appendwordorsplit-list-lt-string-gt-lines-stringbuilder-current-string-word-int-w">Function: appendWordOrSplit(List&amp;lt;String&amp;gt; lines, StringBuilder current, String word, int w)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#important-note">Important note</a>
+<a class="level-2" href="#file-ui-consoletokenformat-java">File: `ui/ConsoleTokenFormat.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#function-pointslabel-int-points">Function: pointsLabel(int points)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-formatcard-card-c-boolean-ansi">Function: formatCard(Card c, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-formatcost-map-lt-token-integer-gt-cost-boolean-ansi">Function: formatCost(Map&amp;lt;Token, Integer&amp;gt; cost, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#example">Example</a>
+<a class="level-3" href="#function-formattokenmap-map-lt-token-integer-gt-map-boolean-includegold-boolean-ansi">Function: formatTokenMap(Map&amp;lt;Token, Integer&amp;gt; map, boolean includeGold, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-formattokenmapfixed-map-lt-token-integer-gt-map-boolean-includegold-boolean-ansi">Function: formatTokenMapFixed(Map&amp;lt;Token, Integer&amp;gt; map, boolean includeGold, boolean ansi)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#example-shape">Example shape</a>
+<a class="level-3" href="#why-it-exists">Why it exists</a>
+<a class="level-3" href="#function-formatcostcompactstatic-map-lt-token-integer-gt-cost">Function: formatCostCompactStatic(Map&amp;lt;Token, Integer&amp;gt; cost)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#use-cases">Use cases</a>
+<a class="level-3" href="#function-remainingafterbonuses-card-card-player-player">Function: remainingAfterBonuses(Card card, Player player)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#important-rule-connection">Important rule connection</a>
+<a class="level-2" href="#file-ui-consoleui-java">File: `ui/ConsoleUI.java`</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#constants">Constants</a>
+<a class="level-3" href="#ansi-clear">ANSI_CLEAR</a>
+<a class="level-3" href="#setup-bounds">Setup bounds</a>
+<a class="level-3" href="#ansi-style-constants">ANSI style constants</a>
+<a class="level-3" href="#fields">Fields</a>
+<a class="level-3" href="#sc">sc</a>
+<a class="level-3" href="#ansienabled">ansiEnabled</a>
+<a class="level-3" href="#nested-class-setupoptions">Nested class: SetupOptions</a>
+<a class="level-3" href="#purpose">Purpose</a>
+<a class="level-3" href="#why-it-exists">Why it exists</a>
+<a class="level-3" href="#constructor-consoleui">Constructor: ConsoleUI()</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#constructor-consoleui-scanner-scanner">Constructor: ConsoleUI(Scanner scanner)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-getwinningpoints-int-defaultwinscore">Function: getWinningPoints(int defaultWinScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-getnumberofplayers">Function: getNumberOfPlayers()</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-displaygamestate-game-game-int-winscore">Function: displayGameState(Game game, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-displaygameover-game-game-int-winscore">Function: displayGameOver(Game game, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-displayreservedcards-player-player">Function: displayReservedCards(Player player)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#important-observation">Important observation</a>
+<a class="level-3" href="#function-runlocalsetupmenu-int-defaultplayers-int-defaultwinscore">Function: runLocalSetupMenu(int defaultPlayers, int defaultWinScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#logic">Logic</a>
+<a class="level-3" href="#why-it-is-nice-ui">Why it is nice UI</a>
+<a class="level-3" href="#function-getplayertypes-int-numplayers">Function: getPlayerTypes(int numPlayers)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-rendergamestatestring-game-game-boolean-ansi-int-winscore">Function: renderGameStateString(Game game, boolean ansi, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-rendergameoverstring-game-game-boolean-ansi-int-winscore">Function: renderGameOverString(Game game, boolean ansi, int winScore)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-formatcostcompactstatic-map-lt-token-integer-gt-cost">Function: formatCostCompactStatic(Map&amp;lt;Token, Integer&amp;gt; cost)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-clearscreen">Function: clearScreen()</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-readlinelower">Function: readLineLower()</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-promptintinline-string-label-int-min-int-max-int-current">Function: promptIntInline(String label, int min, int max, int current)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#behavior">Behavior</a>
+<a class="level-3" href="#function-pauseforenter">Function: pauseForEnter()</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-clamp-int-value-int-min-int-max">Function: clamp(int value, int min, int max)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-bold-string-text">Function: bold(String text)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-3" href="#function-dim-string-text">Function: dim(String text)</a>
+<a class="level-3" href="#what-it-does">What it does</a>
+<a class="level-2" href="#cross-file-design-summary">Cross-File Design Summary</a>
+<a class="level-3" href="#1-public-api-vs-internal-helpers">1. Public API vs internal helpers</a>
+<a class="level-3" href="#2-rendering-pipeline">2. Rendering pipeline</a>
+<a class="level-3" href="#3-ansi-awareness">3. ANSI-awareness</a>
+<a class="level-3" href="#4-game-logic-boundary">4. Game logic boundary</a>
+<a class="level-3" href="#5-repeated-design-pattern-build-strings-don-t-print">5. Repeated design pattern: build strings, don’t print</a>
+<a class="level-2" href="#likely-professor-questions-and-strong-answers">Likely Professor Questions and Strong Answers</a>
+<a class="level-3" href="#why-split-consoleui-from-consolerenderer">Why split ConsoleUI from ConsoleRenderer?</a>
+<a class="level-3" href="#why-are-there-so-many-small-ui-classes">Why are there so many small UI classes?</a>
+<a class="level-3" href="#why-does-gameapp-call-game-can-before-game-action">Why does GameApp call game.can... before game.action...?</a>
+<a class="level-3" href="#why-use-package-private-classes-in-util-ui">Why use package-private classes in util.ui?</a>
+<a class="level-3" href="#why-use-fixed-widths-and-visible-length-helpers">Why use fixed widths and visible-length helpers?</a>
+<a class="level-3" href="#why-does-gameapp-use-runnable-lists-for-menus">Why does GameApp use Runnable lists for menus?</a>
+<a class="level-2" href="#small-weak-spots-you-should-be-ready-to-mention">Small Weak Spots You Should Be Ready to Mention</a>
+<a class="level-3" href="#gameapp-printactionmenu-player-p-does-not-use-p">GameApp.printActionMenu(Player p) does not use p</a>
+<a class="level-3" href="#consoleui-displayreservedcards-already-pauses">ConsoleUI.displayReservedCards(...) already pauses</a>
+<a class="level-3" href="#soft-failure-in-setupgame">Soft failure in setupGame(...)</a>
+<a class="level-3" href="#some-layout-code-depends-on-fixed-widths">Some layout code depends on fixed widths</a>
+<a class="level-2" href="#final-mental-model">Final Mental Model</a></nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Interactive View</p>
+        <h2 style="margin:0;">Comprehensive Utility Package Breakdown</h2>
+        <p>This is a browser-friendly version of your utility report. Use the search box to narrow the page to one file, one method, or one design topic before revision.</p>
+      </section>
+      <div class="cards" id="report"><section class="section-card" data-title="Overview" id="overview"><h2>Overview</h2><p># <code>src/util</code> Comprehensive Report</p><p>This document explains every file and every function under <code>src/util</code>. The goal is not just to restate names, but to make the design easy to defend in an oral check.</p></section>
+<section class="section-card" data-title="Big Picture" id="big-picture"><h2>Big Picture</h2><p><code>src/util</code> contains two main responsibilities:</p><ol><li>Game startup and loop orchestration</li><li>Console UI rendering and interaction</li></ol><p>The package is split like this:</p><ul><li><code>util/AnsiSupport.java</code>: decides whether ANSI color/styling should be used</li><li><code>util/GameApp.java</code>: builds the game, runs the turn loop, and handles player actions</li><li><code>util/SplashScreen.java</code>: prints the startup title screen</li><li><code>util/ui/*</code>: the modular console UI system</li></ul><p>The important design idea is separation of concerns:</p><ul><li><code>GameApp</code> controls game flow and calls methods on <code>logic.Game</code></li><li><code>ConsoleUI</code> handles actual printing and keyboard input</li><li><code>ConsoleRenderer</code> and the package-private <code>Console*View</code> helpers only build strings</li><li>Formatting helpers like <code>ConsoleText</code> and <code>ConsoleTokenFormat</code> keep layout logic out of the higher-level classes</li></ul><p>That separation is one of the strongest things to mention to your professor.</p><hr></section>
+<section class="section-card" data-title="File: `AnsiSupport.java`" id="file-ansisupport-java"><h2>File: <code>AnsiSupport.java</code></h2><h3 id="purpose">Purpose</h3><p>This class decides whether the terminal should use ANSI escape sequences for color, bold text, dim text, screen clearing, and styled boxes.</p><p>It is deliberately tiny and <code>final</code>, with only static behavior.</p><h3 id="class-design">Class design</h3><ul><li><code>final</code>: meant to be a utility class, not extended</li><li>private constructor: prevents accidental instantiation</li></ul><h3 id="function-issupported">Function: <code>isSupported()</code></h3><h3 id="what-it-does">What it does</h3><p>Returns <code>true</code> if the program should output ANSI styling codes, otherwise <code>false</code>.</p><h3 id="logic">Logic</h3><ol><li>If <code>System.console()</code> is <code>null</code>, it returns <code>false</code></li><li>It reads the operating system name from <code>os.name</code></li><li>If the OS looks like Windows, it returns <code>true</code></li><li>Otherwise it checks the <code>TERM</code> environment variable</li><li>It returns <code>true</code> if <code>TERM</code> exists and is not <code>&quot;dumb&quot;</code></li></ol><h3 id="why-it-is-written-this-way">Why it is written this way</h3><ul><li><code>System.console() == null</code> usually means output is not attached to an interactive terminal</li><li>Windows terminals historically needed extra setup for ANSI support, so the comment explains that Jansi should be installed before using the UI</li><li>Unix-like terminals usually expose ANSI capability through <code>TERM</code></li></ul><h3 id="key-oral-explanation">Key oral explanation</h3><p>This is a capability detector. It prevents raw escape sequences from appearing in unsupported consoles and allows the rest of the UI to stay platform-aware without duplicating checks.</p><hr></section>
+<section class="section-card" data-title="File: `GameApp.java`" id="file-gameapp-java"><h2>File: <code>GameApp.java</code></h2><h3 id="purpose">Purpose</h3><p>This is the main game coordinator for local play. It does not implement the underlying game rules itself; instead, it:</p><ul><li>loads cards and nobles</li><li>creates the <code>Board</code>, <code>Deck</code>, and <code>Player</code> objects</li><li>runs the main turn loop</li><li>asks <code>logic.Game</code> whether actions are legal</li><li>calls <code>logic.Game</code> to execute legal actions</li><li>delegates display work to <code>ConsoleUI</code></li><li>delegates AI choices to <code>SplendorAI</code></li></ul><h3 id="constants">Constants</h3><h3 id="default-win-score"><code>DEFAULT_WIN_SCORE</code></h3><ul><li>pulled from <code>GameConfig.getWinningPoints()</code></li><li>acts as the default target score for the overload of <code>runGameLoop</code></li></ul><h3 id="cards-filepath"><code>CARDS_FILEPATH</code></h3><ul><li>path to the card CSV from config</li></ul><h3 id="nobles-filepath"><code>NOBLES_FILEPATH</code></h3><ul><li>path to the noble CSV from config</li></ul><h3 id="function-setupgame-int-numplayers-boolean-isai">Function: <code>setupGame(int numPlayers, boolean[] isAI)</code></h3><h3 id="what-it-does">What it does</h3><p>Convenience overload that calls the 3-argument version with <code>playerNames = null</code>.</p><h3 id="why-it-exists">Why it exists</h3><p>Lets callers create a game without explicitly providing names.</p><h3 id="function-setupgame-int-numplayers-boolean-isai-string-playernames">Function: <code>setupGame(int numPlayers, boolean[] isAI, String[] playerNames)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds a fully initialized <code>Game</code> object.</p><h3 id="step-by-step-behavior">Step-by-step behavior</h3><ol><li>Loads all cards from CSV using <code>CardLoader.loadCards</code></li><li>On failure, prints an error and continues with an empty list</li><li>Splits cards into level 1, 2, and 3 lists</li><li>Builds one <code>Deck</code> per level</li><li>Shuffles each deck</li><li>Loads all nobles from CSV using <code>CardLoader.loadNobles</code></li><li>On failure, prints an error and continues with an empty noble list</li><li>Shuffles the nobles</li><li>Chooses how many nobles to show using <code>GameConfig.getInitialNobles(numPlayers)</code></li><li>Creates the <code>Board</code></li><li>Creates each <code>Player</code></li><li>Chooses player names with this priority:</li></ol><ul><li>provided nonblank custom name</li><li><code>&quot;AI: X&quot;</code> for AI players</li><li><code>&quot;Player: X&quot;</code> for humans</li></ul><ol><li>Returns <code>new Game(board, players)</code></li></ol><h3 id="important-design-points">Important design points</h3><ul><li>This method prepares state, but does not start the loop</li><li>It assumes <code>logic.Game</code>, <code>Board</code>, <code>Deck</code>, and <code>Player</code> enforce actual rule behavior later</li><li>Error handling is soft: failures are reported to <code>stderr</code>, not thrown upward</li></ul><h3 id="potential-professor-question">Potential professor question</h3><p>If file loading fails, the method still returns a <code>Game</code>, but potentially with empty decks or nobles. That keeps the program from crashing immediately, but it may produce a broken game state later. This is a robustness tradeoff.</p><h3 id="function-rungameloop-game-game-scanner-sc-consoleui-ui">Function: <code>runGameLoop(Game game, Scanner sc, ConsoleUI ui)</code></h3><h3 id="what-it-does">What it does</h3><p>Overload that uses <code>DEFAULT_WIN_SCORE</code>.</p><h3 id="function-rungameloop-game-game-scanner-sc-consoleui-ui-int-winscore">Function: <code>runGameLoop(Game game, Scanner sc, ConsoleUI ui, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Runs the full turn-by-turn local game until the game ends or the user quits.</p><h3 id="high-level-flow">High-level flow</h3><ol><li>Prints a text intro banner</li><li>Repeats while <code>!game.isGameOver()</code></li><li>Gets the current player</li><li>Displays the whole board via <code>ui.displayGameState</code></li><li>Handles either a human turn or an AI turn</li><li>If the action was valid:</li></ol><ul><li>forces token returns if above limit</li><li>checks noble visitation</li><li>triggers the final round if score reached <code>winScore</code></li><li>advances to next turn</li></ul><ol><li>After loop exits, determines and prints the winner</li></ol><h3 id="human-turn-handling">Human turn handling</h3><ul><li>shows the action menu</li><li>reads input with <code>readLine(sc)</code></li><li>accepts:</li><li><code>1</code>: take gems</li><li><code>2</code>: buy a card</li><li><code>3</code>: reserve a card</li><li><code>r</code>: show reserved cards</li><li><code>q</code>: quit</li><li>keeps asking until a valid action succeeds</li></ul><h3 id="ai-turn-handling">AI turn handling</h3><ul><li>calls <code>doAITurn</code></li><li>pauses for Enter so the player can read what happened</li></ul><h3 id="endgame-logic">Endgame logic</h3><p>When a player reaches the target score:</p><ul><li>the game does not immediately stop</li><li><code>game.triggerEnd(game.getCurrentPlayerIndex())</code> starts the final-round logic</li><li>the rest of the round finishes according to <code>logic.Game</code></li></ul><p>That matches Splendor’s end-of-round structure.</p><h3 id="function-printactionmenu-player-p">Function: <code>printActionMenu(Player p)</code></h3><h3 id="what-it-does">What it does</h3><p>Prints the local player action menu.</p><h3 id="important-note">Important note</h3><p>The parameter <code>p</code> is not actually used in the body. It could be removed without changing behavior. The method probably kept the parameter for symmetry or future customization.</p><h3 id="function-dotakegems-game-game-player-p-scanner-sc">Function: <code>doTakeGems(Game game, Player p, Scanner sc)</code></h3><h3 id="what-it-does">What it does</h3><p>Handles the “take gems” action for a human player.</p><h3 id="logic">Logic</h3><ol><li>Reads token availability from the board</li><li>Builds a list of available non-gold colors</li><li>If no colors exist, action fails</li><li>Shows each available color with a number</li><li>Explains the two legal input forms:</li></ol><ul><li>two identical numbers means “take two of same color”</li><li>three numbers means “take three different colors”</li></ul><ol><li>Parses the line</li><li>If two equal numbers:</li></ol><ul><li>validates index</li><li>checks <code>game.canTakeTwoSameGems</code></li><li>calls <code>game.takeTwoSameGems</code></li></ul><ol><li>If three numbers:</li></ol><ul><li>validates all indices</li><li>checks <code>game.canTakeThreeDifferentGems</code></li><li>calls <code>game.takeThreeDifferentGems</code></li></ul><ol><li>Otherwise prints an error and returns <code>false</code></li></ol><h3 id="why-this-is-important">Why this is important</h3><p>This method does not hardcode Splendor legality itself. It lets the <code>Game</code> object decide with <code>canTake...</code> methods, then calls the corresponding action method.</p><h3 id="function-getbuyableslottags-game-game-player-p">Function: <code>getBuyableSlotTags(Game game, Player p)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns a list of identifiers for all cards the player can currently afford.</p><h3 id="output-format">Output format</h3><ul><li>visible market cards: <code>&quot;level-slot&quot;</code> such as <code>&quot;2-1&quot;</code></li><li>reserved cards: <code>&quot;r-index&quot;</code> such as <code>&quot;r-0&quot;</code></li></ul><h3 id="logic">Logic</h3><ol><li>Scans all visible cards in levels 1 to 3</li><li>Adds a tag if <code>game.canBuyVisibleCard</code> is true</li><li>Scans reserved cards in the player hand</li><li>Adds a tag if <code>game.canBuyReservedCard</code> is true</li></ol><h3 id="why-it-matters">Why it matters</h3><p>This is a reusable query/helper method. It separates “what can be bought” from “how a human menu is shown.”</p><h3 id="function-dobuycard-game-game-player-p-scanner-sc">Function: <code>doBuyCard(Game game, Player p, Scanner sc)</code></h3><h3 id="what-it-does">What it does</h3><p>Shows all currently affordable cards and executes the selected purchase.</p><h3 id="logic">Logic</h3><ol><li>Builds two parallel lists:</li></ol><ul><li><code>options</code>: strings shown to the user</li><li><code>actions</code>: <code>Runnable</code>s that execute the matching purchase</li></ul><ol><li>Scans visible cards and reserved cards</li><li>Adds an action only if the card is affordable</li><li>Prints the numbered list</li><li>Reads numeric input</li><li>Runs the chosen <code>Runnable</code></li></ol><h3 id="why-the-runnable-design-is-good">Why the <code>Runnable</code> design is good</h3><p>It decouples menu display from execution. Once the menu is built, selection becomes a simple index lookup.</p><h3 id="formatting-behavior">Formatting behavior</h3><p>Each option includes:</p><ul><li>level/slot or reserved id</li><li>prestige points</li><li>bonus token label</li><li>compact cost string from <code>ConsoleUI.formatCostCompactStatic</code></li></ul><h3 id="function-doreservecard-game-game-player-p-scanner-sc">Function: <code>doReserveCard(Game game, Player p, Scanner sc)</code></h3><h3 id="what-it-does">What it does</h3><p>Shows all reservable cards and executes the selected reserve action.</p><h3 id="logic">Logic</h3><ol><li>Rejects action if the player already has 3 reserved cards</li><li>Builds <code>options</code> and <code>actions</code></li><li>Adds visible card reserve options from level 3 down to 1</li><li>Adds face-down deck reserve options for deck levels 1 to 3</li><li>Prints the menu</li><li>Runs the selected reserve action</li></ol><h3 id="design-notes">Design notes</h3><ul><li>Visible cards are listed highest level first, likely to emphasize stronger cards</li><li>Deck reservations are listed separately with remaining deck count</li><li>Again, <code>Runnable</code> is used to unify menu and execution</li></ul><h3 id="function-returnexcesstokens-game-game-player-p-scanner-sc">Function: <code>returnExcessTokens(Game game, Player p, Scanner sc)</code></h3><h3 id="what-it-does">What it does</h3><p>Enforces the 10-token limit for a human player after a successful action.</p><h3 id="logic">Logic</h3><ol><li>Returns immediately if the player is within the limit</li><li>Shows how many tokens must be returned</li><li>Repeats while <code>game.mustReturnTokens(p)</code> is true</li><li>Builds a numbered list of token types the player actually holds</li><li>Reads a number</li><li>Calls <code>game.returnToken(p, t, 1)</code></li></ol><h3 id="why-it-is-written-this-way">Why it is written this way</h3><p>The player chooses exactly which tokens to give back, which matters strategically.</p><h3 id="function-doaiturn-game-game-player-p">Function: <code>doAITurn(Game game, Player p)</code></h3><h3 id="what-it-does">What it does</h3><p>Interprets the AI’s encoded action string and tries to execute it.</p><h3 id="input-source">Input source</h3><p><code>SplendorAI.chooseAction(p, board)</code></p><h3 id="expected-action-formats">Expected action formats</h3><ul><li><code>&quot;1:T1:T2:T3&quot;</code> for taking three different gems</li><li><code>&quot;2:T&quot;</code> for taking two of the same gem</li><li><code>&quot;3:r:index&quot;</code> for buying a reserved card</li><li><code>&quot;3:level:slot&quot;</code> for buying a visible card</li><li><code>&quot;4:deck:level&quot;</code> for reserving from a deck</li><li><code>&quot;4:level:slot&quot;</code> for reserving a visible card</li></ul><h3 id="logic">Logic</h3><ol><li>Ask AI for an action string</li><li>If <code>null</code>, skip turn with a message</li><li>Split by <code>&quot;:&quot;</code></li><li>Match action type by <code>parts[0]</code></li><li>Validate legality through <code>game.can...</code></li><li>Execute the corresponding game action</li><li>Print a one-line summary</li><li>Catch any exception and report failure</li></ol><h3 id="important-oral-point">Important oral point</h3><p>The AI does not directly mutate state. It proposes an action string, and <code>GameApp</code> still validates and executes it through <code>logic.Game</code>.</p><h3 id="function-returnexcesstokensai-game-game-player-p">Function: <code>returnExcessTokensAI(Game game, Player p)</code></h3><h3 id="what-it-does">What it does</h3><p>Makes the AI return tokens when over the limit.</p><h3 id="logic">Logic</h3><ol><li>Checks if return is needed</li><li>Asks <code>SplendorAI.chooseTokensToReturn</code></li><li>Returns each listed token by calling <code>game.returnToken</code></li></ol><h3 id="design-point">Design point</h3><p>The AI chooses the strategy, but <code>GameApp</code> performs the actual mutation.</p><h3 id="function-checknoblevisit-game-game-player-p">Function: <code>checkNobleVisit(Game game, Player p)</code></h3><h3 id="what-it-does">What it does</h3><p>Checks whether the player qualifies for a noble and prints a message if one is awarded.</p><h3 id="logic">Logic</h3><ul><li>calls <code>game.checkAndAwardNoble(p)</code></li><li>if result is non-null, prints the noble visit announcement</li></ul><h3 id="function-printline-string-ch-int-len">Function: <code>printLine(String ch, int len)</code></h3><h3 id="what-it-does">What it does</h3><p>Prints a repeated-character separator using <code>String.repeat</code>.</p><h3 id="function-tokenlabel-token-token">Function: <code>tokenLabel(Token token)</code></h3><h3 id="what-it-does">What it does</h3><p>Converts a <code>Token</code> enum value into a short display label:</p><ul><li><code>BLACK -&gt; Blk</code></li><li><code>BLUE -&gt; Blu</code></li><li><code>GREEN -&gt; Grn</code></li><li><code>RED -&gt; Red</code></li><li><code>WHITE -&gt; Wht</code></li><li><code>GOLD -&gt; Gld</code></li></ul><h3 id="why-it-exists">Why it exists</h3><p>Compact labels fit menus and card summaries better than full names.</p><h3 id="function-formatcardshort-card-c">Function: <code>formatCardShort(Card c)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds a one-line card summary for AI action messages.</p><h3 id="example-shape">Example shape</h3><p><code>PV:2 BLUE+ Blk1 Red2</code></p><h3 id="function-readline-scanner-sc">Function: <code>readLine(Scanner sc)</code></h3><h3 id="what-it-does">What it does</h3><p>Reads a line safely from the scanner.</p><h3 id="behavior">Behavior</h3><ul><li>returns <code>null</code> if there is no next line</li><li>otherwise trims whitespace</li><li>converts input to lowercase</li></ul><h3 id="why-that-matters">Why that matters</h3><p>Menu handling becomes simpler because uppercase and lowercase are treated the same.</p><hr></section>
+<section class="section-card" data-title="File: `SplashScreen.java`" id="file-splashscreen-java"><h2>File: <code>SplashScreen.java</code></h2><h3 id="purpose">Purpose</h3><p>Displays the large startup title screen for three contexts:</p><ul><li>local game</li><li>server mode</li><li>client mode</li></ul><p>This class is presentation-only.</p><h3 id="constants">Constants</h3><p>This file defines ANSI styling constants such as:</p><ul><li><code>RESET</code>, <code>BOLD</code>, <code>DIM</code></li><li>gem colors for black, blue, green, red, white, gold</li><li><code>CLEAR</code> for clear-screen behavior</li></ul><p>It also defines layout constants:</p><ul><li><code>TITLE</code>: block-art rows for the “SPLENDOR” banner</li><li><code>TITLE_WIDTH</code>: visible width of the art</li><li><code>INNER</code>: content width inside the outer box</li><li><code>TITLE_PAD</code>: computed left padding used to center the art</li></ul><h3 id="function-local">Function: <code>local()</code></h3><h3 id="what-it-does">What it does</h3><p>Calls <code>render</code> with text specific to local play.</p><h3 id="function-server-int-numplayers-int-port">Function: <code>server(int numPlayers, int port)</code></h3><h3 id="what-it-does">What it does</h3><p>Calls <code>render</code> with text specific to server mode, including player count and port.</p><h3 id="function-client">Function: <code>client()</code></h3><h3 id="what-it-does">What it does</h3><p>Calls <code>render</code> with text specific to client mode.</p><h3 id="function-render-boolean-ansi-string-modeline-string-detailline">Function: <code>render(boolean ansi, String modeLine, String detailLine)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds and prints the full splash screen.</p><h3 id="logic">Logic</h3><ol><li>Clears the screen</li><li>Builds box border strings</li><li>Colors the outer border gold if ANSI is enabled</li><li>Prints top border and blank padding lines</li><li>Prints the ASCII title, centered</li><li>Prints the gem legend</li><li>Prints the tagline</li><li>Prints mode/detail lines</li><li>Prints bottom border</li></ol><h3 id="design-strengths">Design strengths</h3><ul><li>The public entry methods are tiny and expressive</li><li><code>render</code> centralizes all layout logic</li><li>ANSI and non-ANSI modes both work</li><li>visible width is carefully managed</li></ul><h3 id="function-gemlegend-boolean-ansi">Function: <code>gemLegend(boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns the legend row describing gem colors.</p><h3 id="behavior">Behavior</h3><ul><li>without ANSI: plain text dots and star labels</li><li>with ANSI: each symbol is colored to match the gem</li></ul><h3 id="function-centred-string-text-int-width-boolean-ansi">Function: <code>centred(String text, int width, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Centers text in a fixed visible width.</p><h3 id="key-detail">Key detail</h3><p>It uses <code>visLen(text)</code> so ANSI escape sequences do not break width calculations.</p><h3 id="function-vislen-string-s">Function: <code>visLen(String s)</code></h3><h3 id="what-it-does">What it does</h3><p>Measures visible length by removing ANSI escape codes before calling <code>length()</code>.</p><h3 id="function-println-string-s">Function: <code>println(String s)</code></h3><h3 id="what-it-does">What it does</h3><p>Tiny wrapper around <code>System.out.println</code>.</p><h3 id="why-it-may-exist">Why it may exist</h3><p>Mostly stylistic consistency inside the renderer.</p><h3 id="function-clearscreen-boolean-ansi">Function: <code>clearScreen(boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Clears the terminal before drawing the splash screen.</p><h3 id="behavior">Behavior</h3><ul><li>ANSI mode: sends the clear-screen escape code and flushes output</li><li>fallback mode: prints 40 blank lines to push old content away</li></ul><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleAnsi.java`" id="file-ui-consoleansi-java"><h2>File: <code>ui/ConsoleAnsi.java</code></h2><h3 id="purpose">Purpose</h3><p>Provides ANSI-related text styling utilities used by the console UI package.</p><p>This class is package-private, so it is an internal helper rather than part of the public UI API.</p><h3 id="constants">Constants</h3><ul><li><code>ESC</code>: ANSI escape prefix</li><li><code>RESET</code>: reset sequence</li><li><code>BOLD</code>: bold sequence</li><li><code>DIM</code>: dim sequence</li></ul><h3 id="function-bold-string-text-boolean-ansi">Function: <code>bold(String text, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Wraps text in bold escape codes if ANSI is enabled.</p><h3 id="function-dim-string-text-boolean-ansi">Function: <code>dim(String text, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Wraps text in dim styling if ANSI is enabled.</p><h3 id="function-tokenshortlabel-token-token">Function: <code>tokenShortLabel(Token token)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns compact 3-letter token labels.</p><h3 id="function-tokenlabel-token-token">Function: <code>tokenLabel(Token token)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns user-facing token text. Right now it is effectively the same as <code>tokenShortLabel</code>, except <code>null</code> becomes <code>&quot;(none)&quot;</code>.</p><h3 id="function-colorizetoken-token-token-string-text-boolean-ansi">Function: <code>colorizeToken(Token token, String text, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Applies a foreground color to token-related text.</p><h3 id="why-it-is-important">Why it is important</h3><p>The method colors only the token abbreviation, not surrounding text, so spacing and alignment remain stable.</p><h3 id="function-gemchip-token-token-boolean-ansi">Function: <code>gemChip(Token token, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns a small token badge used inside card boxes.</p><h3 id="behavior">Behavior</h3><ul><li>non-ANSI: plain label such as <code>Blk</code></li><li>ANSI: background-colored chip such as a colored rectangle with the token label inside</li></ul><h3 id="function-gembordercolor-token-token">Function: <code>gemBorderColor(Token token)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns the ANSI border color code that should be used for cards of a given bonus color.</p><h3 id="why-it-exists">Why it exists</h3><p>It makes market cards visually scannable by matching border color to bonus color.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleBoxes.java`" id="file-ui-consoleboxes-java"><h2>File: <code>ui/ConsoleBoxes.java</code></h2><h3 id="purpose">Purpose</h3><p>Builds borders and joins multiple rendered boxes into rows or grids.</p><p>This class is the structural layout helper for card boxes, noble boxes, and player panels.</p><h3 id="function-bordertop-int-innerwidth-string-bordercolor-boolean-ansi">Function: <code>borderTop(int innerWidth, String borderColor, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds the top border for a box of visible width <code>innerWidth</code>.</p><h3 id="behavior">Behavior</h3><ul><li>uses Unicode box-drawing characters from <code>ConsoleConstants</code></li><li>optionally wraps the full border in ANSI color</li></ul><h3 id="function-borderbottom-int-innerwidth-string-bordercolor-boolean-ansi">Function: <code>borderBottom(int innerWidth, String borderColor, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Same as <code>borderTop</code>, but for the bottom border.</p><h3 id="function-borderleft-string-bordercolor-boolean-ansi">Function: <code>borderLeft(String borderColor, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns the left vertical border, optionally colored.</p><h3 id="function-borderright-string-bordercolor-boolean-ansi">Function: <code>borderRight(String borderColor, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns the right vertical border, optionally colored.</p><h3 id="function-joinboxessidebyside-list-lt-list-lt-string-gt-gt-boxes">Function: <code>joinBoxesSideBySide(List&lt;List&lt;String&gt;&gt; boxes)</code></h3><h3 id="what-it-does">What it does</h3><p>Takes several already-rendered boxes and places them horizontally beside each other.</p><h3 id="important-logic">Important logic</h3><ol><li>Finds the tallest box height</li><li>Pads shorter boxes with blank inner rows</li><li>Keeps their bottom borders at the bottom</li><li>Joins each row with two spaces between boxes</li></ol><h3 id="why-it-is-necessary">Why it is necessary</h3><p>Different content can produce different box heights. Without normalization, side-by-side layout would break.</p><h3 id="function-renderboxesgrid-list-lt-list-lt-string-gt-gt-boxes-int-columns">Function: <code>renderBoxesGrid(List&lt;List&lt;String&gt;&gt; boxes, int columns)</code></h3><h3 id="what-it-does">What it does</h3><p>Renders many boxes into multiple rows of a grid.</p><h3 id="logic">Logic</h3><ol><li>Splits the box list into blocks of <code>columns</code></li><li>Calls <code>joinBoxesSideBySide</code> on each block</li><li>Adds blank lines between row blocks</li></ol><h3 id="typical-uses">Typical uses</h3><ul><li>player boxes: 2 columns</li><li>noble boxes: up to 3 columns</li></ul><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleConstants.java`" id="file-ui-consoleconstants-java"><h2>File: <code>ui/ConsoleConstants.java</code></h2><h3 id="purpose">Purpose</h3><p>Stores layout constants shared across the console UI.</p><p>This centralization makes sizes easy to justify and tweak.</p><h3 id="constants">Constants</h3><h3 id="max-reserved"><code>MAX_RESERVED</code></h3><ul><li>maximum reserved cards per player</li><li>reflects the Splendor rule of 3</li></ul><h3 id="width-constants">Width constants</h3><ul><li><code>CARD_BOX_WIDTH = 30</code></li><li><code>NOBLE_BOX_WIDTH = 34</code></li><li><code>PLAYER_BOX_WIDTH = 54</code></li></ul><p>These are total widths including borders.</p><h3 id="border-glyph-constants">Border glyph constants</h3><ul><li><code>H</code>, <code>TL</code>, <code>TR</code>, <code>BL</code>, <code>BR</code>, <code>VB</code></li></ul><p>These are Unicode box-drawing characters.</p><h3 id="cost-order"><code>COST_ORDER</code></h3><ul><li>fixed token order used everywhere:</li><li>black, blue, green, red, white</li></ul><h3 id="why-fixed-ordering-matters">Why fixed ordering matters</h3><p>Consistent ordering makes costs and token maps easier to compare visually across the UI.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleGameOverView.java`" id="file-ui-consolegameoverview-java"><h2>File: <code>ui/ConsoleGameOverView.java</code></h2><h3 id="purpose">Purpose</h3><p>Builds the final “game over” screen, including both the final board and the winner/standings banner.</p><h3 id="function-rendergameoverstring-game-game-boolean-ansi-int-winscore">Function: <code>renderGameOverString(Game game, boolean ansi, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds the full end screen as a string.</p><h3 id="logic">Logic</h3><ol><li>Calls <code>ConsoleGameStateView.renderGameStateString(...)</code></li><li>Adds a blank line</li><li>Appends the game-over banner from <code>renderGameOverBanner(...)</code></li></ol><h3 id="why-this-design-is-good">Why this design is good</h3><p>The end screen reuses the normal board renderer, so there is one consistent way to show the game state.</p><h3 id="function-rendergameoverbanner-game-game-boolean-ansi-int-winscore">Function: <code>renderGameOverBanner(Game game, boolean ansi, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds a gold-framed results box showing:</p><ul><li>“GAME OVER”</li><li>winner</li><li>winner score</li><li>congratulation line</li><li>final standings</li><li>tie-break explanation</li></ul><h3 id="logic">Logic</h3><ol><li>Gets all players and the winner</li><li>Sets fixed width <code>inner = 78</code></li><li>Uses gold ANSI border color when ANSI is enabled</li><li>Builds title and trophy strings</li><li>Adds top/title/blank lines</li><li>If winner exists:</li></ol><ul><li>prints winner name</li><li>prints winner score relative to <code>winScore</code></li><li>prints congratulations</li></ul><ol><li>Otherwise prints a fallback line</li><li>Builds a copied <code>sorted</code> list of players</li><li>Sorts by:</li></ol><ul><li>higher score first</li><li>fewer purchased cards first as tie-break</li></ul><ol><li>Prints each player’s rank, score, card count, and noble count</li><li>Adds the tie-break note</li><li>Adds bottom border</li></ol><h3 id="important-oral-point">Important oral point</h3><p>This view does not decide who wins. It asks <code>game.determineWinner()</code>. The UI only formats the outcome.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleGameStateView.java`" id="file-ui-consolegamestateview-java"><h2>File: <code>ui/ConsoleGameStateView.java</code></h2><h3 id="purpose">Purpose</h3><p>Builds the main in-game board view shown every turn.</p><p>This is one of the most important UI files because it assembles the whole screen from smaller rendering helpers.</p><h3 id="function-rendergamestatestring-game-game-boolean-ansi-int-winscore">Function: <code>renderGameStateString(Game game, boolean ansi, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds the complete multi-line game-state string for the current turn.</p><h3 id="main-sections-in-output-order">Main sections in output order</h3><ol><li>Header</li><li>Legend</li><li>Turn or final banner</li><li>Score summary</li><li>Player grid</li><li>Bank/token supply</li><li>Nobles</li><li>Market rows</li><li>Reserved-card tip for humans</li></ol><h3 id="detailed-logic">Detailed logic</h3><ol><li>Validates <code>game</code> with <code>Objects.requireNonNull</code></li><li>Reads:</li></ol><ul><li>board</li><li>players</li><li>current player index</li><li>current player</li><li>leader score using <code>ConsoleScoreView.maxScore</code></li></ul><ol><li>Builds header text with bold and dim styling</li><li>Builds the color legend using <code>ConsoleAnsi.colorizeToken</code></li><li>If the game is over:</li></ol><ul><li>show <code>FINAL: Game Over</code></li><li>show score summary with current index <code>-1</code></li></ul><ol><li>Otherwise:</li></ol><ul><li>compute how many points current player still needs</li><li>show <code>TURN: Pn Name</code></li><li>show highlighted score badge</li><li>show full score summary</li></ul><ol><li>Append player summaries from <code>ConsolePlayerView.renderPlayersGrid</code></li><li>Append bank token counts using <code>ConsoleTokenFormat.formatTokenMap</code></li><li>Append nobles section using <code>ConsoleNobleView.renderNoblesSection</code></li><li>Append market section level 3 to 1, including deck counts</li><li>If current player is human and has reserved cards, append a tip about <code>[R]</code></li></ol><h3 id="why-it-is-good-architecture">Why it is good architecture</h3><p>This class reads like a top-level storyboard of the screen. It does not contain low-level box rendering or token formatting details.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleMarketView.java`" id="file-ui-consolemarketview-java"><h2>File: <code>ui/ConsoleMarketView.java</code></h2><h3 id="purpose">Purpose</h3><p>Renders the market rows and individual card boxes.</p><h3 id="function-buildmarketrowstring-int-level-card-row-boolean-ansi">Function: <code>buildMarketRowString(int level, Card[] row, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds one full market row for a given card level.</p><h3 id="logic">Logic</h3><ol><li>Precomputes wrapped cost chunks for each card</li><li>Tracks the maximum number of cost lines needed by any card in the row</li><li>Renders each slot as a box using that shared max line count</li><li>Joins the boxes horizontally with <code>ConsoleBoxes.joinBoxesSideBySide</code></li></ol><h3 id="why-precomputing-matters">Why precomputing matters</h3><p>If one card has a long cost string and another has a short one, all boxes still stay the same height.</p><h3 id="function-computewrappedcostchunks-card-card-int-inner-boolean-ansi">Function: <code>computeWrappedCostChunks(Card card, int inner, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Determines how many visible lines are needed for the card’s cost text inside a fixed-width card box.</p><h3 id="logic">Logic</h3><ol><li>Builds the prefix: bonus chip plus <code>&quot;Cost &quot;</code></li><li>Measures visible width of the prefix</li><li>Computes remaining width for cost text</li><li>Formats the cost compactly</li><li>Wraps it with <code>ConsoleText.wrapBySpaces</code></li><li>Returns <code>&quot;-&quot;</code> if no chunks exist</li></ol><h3 id="function-rendercardbox-string-id-card-card-boolean-ansi-list-lt-string-gt-costchunks-int-maxcostlines">Function: <code>renderCardBox(String id, Card card, boolean ansi, List&lt;String&gt; costChunks, int maxCostLines)</code></h3><h3 id="what-it-does">What it does</h3><p>Creates the individual lines for one market card box.</p><h3 id="logic-for-non-null-card">Logic for non-null card</h3><ol><li>Chooses border color from the card’s bonus</li><li>Builds top/bottom/left/right borders</li><li>Adds top border</li><li>Adds first content line with slot id on the left and points on the right</li><li>Adds the first cost line with bonus chip and first cost chunk</li><li>Adds any additional wrapped cost lines, aligned under the cost section</li><li>Adds bottom border</li></ol><h3 id="logic-for-null-card">Logic for null card</h3><ol><li>Shows the slot id</li><li>Shows <code>(empty)</code></li><li>Pads remaining needed lines</li><li>Adds bottom border</li></ol><h3 id="important-design-point">Important design point</h3><p>The method uses fixed <code>CARD_BOX_WIDTH</code>, visible-length calculation, and shared <code>maxCostLines</code> to keep market rows aligned.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleNobleView.java`" id="file-ui-consolenobleview-java"><h2>File: <code>ui/ConsoleNobleView.java</code></h2><h3 id="purpose">Purpose</h3><p>Renders the nobles section and shows how close the current player is to each noble.</p><h3 id="function-rendernoblessection-list-lt-noble-gt-nobles-player-currentplayer-boolean-ansi">Function: <code>renderNoblesSection(List&lt;Noble&gt; nobles, Player currentPlayer, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds the full nobles section.</p><h3 id="logic">Logic</h3><ol><li>Adds the “Nobles” heading</li><li>If there are none, prints <code>(none)</code></li><li>Otherwise renders each noble box</li><li>Arranges them in a grid of up to 3 columns</li></ol><h3 id="function-rendernoblebox-int-index-noble-noble-player-currentplayer-boolean-ansi">Function: <code>renderNobleBox(int index, Noble noble, Player currentPlayer, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds a single noble box.</p><h3 id="content">Content</h3><ul><li><code>[Nindex] name</code></li><li>prestige points</li><li>required bonuses</li><li>current player’s remaining requirements or <code>*** READY! ***</code></li></ul><h3 id="logic">Logic</h3><ol><li>Creates a box using <code>NOBLE_BOX_WIDTH</code></li><li>Prints id/name on the left and points on the right</li><li>Prints full cost</li><li>Compares noble cost against the current player’s permanent bonuses</li><li>For each missing color, appends colored token label plus amount still needed</li><li>If nothing is missing, shows <code>READY</code></li></ol><h3 id="important-oral-point">Important oral point</h3><p>The progress shown here is specifically for the current player, not all players. It is a tactical helper.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsolePlayerView.java`" id="file-ui-consoleplayerview-java"><h2>File: <code>ui/ConsolePlayerView.java</code></h2><h3 id="purpose">Purpose</h3><p>Renders the per-player summary boxes at the top of the board.</p><h3 id="function-renderplayersgrid-list-lt-player-gt-players-int-currentindex-int-winscore-int-leaderscore-boolean-ansi">Function: <code>renderPlayersGrid(List&lt;Player&gt; players, int currentIndex, int winScore, int leaderScore, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds all player boxes and arranges them into a grid.</p><h3 id="layout-rule">Layout rule</h3><ul><li>1 or 2 players: that many columns</li><li>3 or 4 players: 2 columns</li></ul><h3 id="function-renderplayerbox-int-index-player-player-boolean-iscurrent-int-winscore-int-leaderscore-boolean-ansi">Function: <code>renderPlayerBox(int index, Player player, boolean isCurrent, int winScore, int leaderScore, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds one player summary box.</p><h3 id="content">Content</h3><ul><li>player id, human/AI marker, and name</li><li>right-side current-turn marker <code>&lt;==</code></li><li>score badge</li><li>reserved count, bought-card count, noble count</li><li>token inventory</li><li>permanent bonuses</li></ul><h3 id="logic">Logic</h3><ol><li>Uses <code>PLAYER_BOX_WIDTH</code></li><li>Uses bold border styling if ANSI is enabled</li><li>Builds name row, bolding it if current</li><li>Uses <code>ConsoleScoreView.renderScoreBadge</code></li><li>Uses <code>ConsoleTokenFormat.formatTokenMapFixed</code> for tokens and bonuses</li></ol><h3 id="why-fixed-width-token-formatting-matters">Why fixed-width token formatting matters</h3><p>Counts can change every turn. Fixed-width formatting prevents the box borders from shifting horizontally.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleRenderer.java`" id="file-ui-consolerenderer-java"><h2>File: <code>ui/ConsoleRenderer.java</code></h2><h3 id="purpose">Purpose</h3><p>This is the public rendering facade for the UI package.</p><p>External code calls this class, while the lower-level view classes stay package-private.</p><h3 id="why-this-matters">Why this matters</h3><p>It gives the package a clean public API and hides implementation details.</p><h3 id="function-rendergamestatestring-game-game-boolean-ansi-int-winscore">Function: <code>renderGameStateString(Game game, boolean ansi, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Delegates directly to <code>ConsoleGameStateView.renderGameStateString</code>.</p><h3 id="function-rendergameoverstring-game-game-boolean-ansi-int-winscore">Function: <code>renderGameOverString(Game game, boolean ansi, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Delegates directly to <code>ConsoleGameOverView.renderGameOverString</code>.</p><h3 id="function-renderreservedcardsstring-player-player-boolean-ansi">Function: <code>renderReservedCardsString(Player player, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Delegates directly to <code>ConsoleReservedView.renderReservedCardsString</code>.</p><h3 id="function-formatcostcompactstatic-map-lt-token-integer-gt-cost">Function: <code>formatCostCompactStatic(Map&lt;Token, Integer&gt; cost)</code></h3><h3 id="what-it-does">What it does</h3><p>Delegates directly to <code>ConsoleTokenFormat.formatCostCompactStatic</code>.</p><h3 id="function-rendergamestatestring-game-game-boolean-ansi">Function: <code>renderGameStateString(Game game, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Backward-compatible overload that defaults <code>winScore</code> to 10.</p><h3 id="why-the-class-is-useful">Why the class is useful</h3><p>If the internal renderer classes are reorganized later, callers do not need to change as long as this facade stays stable.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleReservedView.java`" id="file-ui-consolereservedview-java"><h2>File: <code>ui/ConsoleReservedView.java</code></h2><h3 id="purpose">Purpose</h3><p>Renders the screen showing a player’s reserved cards.</p><h3 id="function-renderreservedcardsstring-player-player-boolean-ansi">Function: <code>renderReservedCardsString(Player player, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds the reserved-card view for one player.</p><h3 id="content">Content</h3><ul><li>title with reserved count</li><li>player name</li><li>current permanent bonuses</li><li>one section per reserved card</li></ul><p>For each card it shows:</p><ul><li>slot id like <code>[r-0]</code></li><li>whether it is currently affordable</li><li>card summary</li><li>remaining cost after applying bonuses</li></ul><h3 id="logic">Logic</h3><ol><li>Null-checks <code>player</code></li><li>Prints title, player, and bonuses</li><li>If hand is empty, prints <code>(none)</code></li><li>Otherwise loops through each reserved card</li><li>Uses <code>player.canAffordCard(c)</code> to determine affordability label</li><li>Uses <code>ConsoleTokenFormat.formatCard</code></li><li>Uses <code>ConsoleTokenFormat.remainingAfterBonuses</code></li></ol><h3 id="important-oral-point">Important oral point</h3><p>This view is informational only. It does not buy cards. It helps the player evaluate future moves.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleScoreView.java`" id="file-ui-consolescoreview-java"><h2>File: <code>ui/ConsoleScoreView.java</code></h2><h3 id="purpose">Purpose</h3><p>Formats score-related UI elements.</p><h3 id="function-maxscore-list-lt-player-gt-players">Function: <code>maxScore(List&lt;Player&gt; players)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns the highest player score in the list.</p><h3 id="behavior">Behavior</h3><ul><li>if no players, returns <code>0</code></li></ul><h3 id="function-renderscoressummary-list-lt-player-gt-players-int-currentindex-int-winscore-int-leaderscore-boolean-ansi">Function: <code>renderScoresSummary(List&lt;Player&gt; players, int currentIndex, int winScore, int leaderScore, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds the compact score strip used near the top of the screen.</p><h3 id="output-style">Output style</h3><p>Each player is shown as <code>P# score/winScore</code>.</p><h3 id="highlight-rules">Highlight rules</h3><ul><li>non-ANSI:</li><li>current player gets brackets</li><li>leader gets <code>*</code> if not current</li><li>ANSI:</li><li>current player gets bold brackets</li><li>leader gets bold text</li></ul><h3 id="function-renderscorebadge-int-score-int-winscore-int-towin-boolean-iscurrent-boolean-isleader-boolean-ansi">Function: <code>renderScoreBadge(int score, int winScore, int toWin, boolean isCurrent, boolean isLeader, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds the more prominent per-player score badge used inside player boxes and the turn banner.</p><h3 id="output-content">Output content</h3><p><code>SCORE: current/target   LEFT: remaining</code></p><h3 id="highlight-rules">Highlight rules</h3><ul><li>no ANSI:</li><li>current player gets <code>&gt;&gt;</code></li><li>leader gets <code>*</code></li><li>ANSI:</li><li>current player gets bold black-on-yellow</li><li>leader gets bold black-on-green</li><li>others get bold text</li></ul><h3 id="why-this-class-is-separate">Why this class is separate</h3><p>Score formatting rules are reused in multiple places, so centralizing them avoids duplicated styling logic.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleText.java`" id="file-ui-consoletext-java"><h2>File: <code>ui/ConsoleText.java</code></h2><h3 id="purpose">Purpose</h3><p>Provides low-level text layout utilities that are ANSI-aware.</p><p>This file is crucial because ANSI escape sequences break normal <code>String.length()</code> alignment logic.</p><h3 id="function-stripansi-string-s">Function: <code>stripAnsi(String s)</code></h3><h3 id="what-it-does">What it does</h3><p>Removes ANSI escape sequences from a string using regex.</p><h3 id="function-vislen-string-s">Function: <code>visLen(String s)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns visible character length by calling <code>stripAnsi</code>.</p><h3 id="function-padright-string-s-int-width">Function: <code>padRight(String s, int width)</code></h3><h3 id="what-it-does">What it does</h3><p>Pads text on the right until visible width reaches <code>width</code>.</p><h3 id="function-truncatevisible-string-s-int-width">Function: <code>truncateVisible(String s, int width)</code></h3><h3 id="what-it-does">What it does</h3><p>Truncates to a visible-width limit while preserving ANSI escape sequences.</p><h3 id="important-logic">Important logic</h3><ol><li>If already short enough, return unchanged</li><li>If width is tiny, return dots only</li><li>Walk through characters manually</li><li>Copy ANSI sequences without counting them as visible width</li><li>Count visible characters normally</li><li>Append <code>...</code></li><li>Append <code>RESET</code> if ANSI sequences were present</li></ol><h3 id="why-this-is-hard">Why this is hard</h3><p>A normal substring could cut an ANSI sequence in half or miscount visible length. This method avoids that.</p><h3 id="function-fitline-string-s-int-width">Function: <code>fitLine(String s, int width)</code></h3><h3 id="what-it-does">What it does</h3><p>Guarantees exact visible width:</p><ul><li>truncates if too long</li><li>pads if too short</li></ul><h3 id="function-rightmarkerline-string-left-string-right-int-innerwidth">Function: <code>rightMarkerLine(String left, String right, int innerWidth)</code></h3><h3 id="what-it-does">What it does</h3><p>Places a left label and right marker on one line with the marker flush right.</p><h3 id="use-cases">Use cases</h3><ul><li>card header with points on the right</li><li>player row with <code>&lt;==</code> on the right</li></ul><h3 id="function-centerline-string-text-int-width">Function: <code>centerLine(String text, int width)</code></h3><h3 id="what-it-does">What it does</h3><p>Centers text using visible width.</p><h3 id="function-wrapbyspaces-string-text-int-width">Function: <code>wrapBySpaces(String text, int width)</code></h3><h3 id="what-it-does">What it does</h3><p>Wraps text into lines that fit a maximum width, splitting at spaces when possible.</p><h3 id="logic">Logic</h3><ol><li>Trim input</li><li>Split into words</li><li>Build lines greedily</li><li>If a word is too long, delegate to <code>appendWordOrSplit</code></li></ol><h3 id="function-appendwordorsplit-list-lt-string-gt-lines-stringbuilder-current-string-word-int-w">Function: <code>appendWordOrSplit(List&lt;String&gt; lines, StringBuilder current, String word, int w)</code></h3><h3 id="what-it-does">What it does</h3><p>Either appends a word to the current line or splits the word into fixed-width pieces.</p><h3 id="important-note">Important note</h3><p>This is package-private helper logic used only by <code>wrapBySpaces</code>.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleTokenFormat.java`" id="file-ui-consoletokenformat-java"><h2>File: <code>ui/ConsoleTokenFormat.java</code></h2><h3 id="purpose">Purpose</h3><p>Formats token maps, card costs, card summaries, and remaining costs after bonuses.</p><p>This is strictly formatting plus a light calculation helper for “remaining after bonuses.”</p><h3 id="function-pointslabel-int-points">Function: <code>pointsLabel(int points)</code></h3><h3 id="what-it-does">What it does</h3><p>Returns text like <code>&quot;3 pts&quot;</code>.</p><h3 id="function-formatcard-card-c-boolean-ansi">Function: <code>formatCard(Card c, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Builds a one-line card summary with points, bonus, and cost.</p><h3 id="function-formatcost-map-lt-token-integer-gt-cost-boolean-ansi">Function: <code>formatCost(Map&lt;Token, Integer&gt; cost, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Formats a cost map in token order, skipping zeros.</p><h3 id="example">Example</h3><p><code>Blk2 Blu1 Red3</code></p><h3 id="function-formattokenmap-map-lt-token-integer-gt-map-boolean-includegold-boolean-ansi">Function: <code>formatTokenMap(Map&lt;Token, Integer&gt; map, boolean includeGold, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Formats a token inventory such as a bank or player holdings.</p><h3 id="behavior">Behavior</h3><ul><li>skips zero-count colors</li><li>optionally includes gold</li><li>returns <code>—</code> if nothing is present</li></ul><h3 id="function-formattokenmapfixed-map-lt-token-integer-gt-map-boolean-includegold-boolean-ansi">Function: <code>formatTokenMapFixed(Map&lt;Token, Integer&gt; map, boolean includeGold, boolean ansi)</code></h3><h3 id="what-it-does">What it does</h3><p>Formats a token map in fixed-width style, always showing every color with two-digit counts.</p><h3 id="example-shape">Example shape</h3><p><code>Blk02 Blu00 Grn01 Red03 Wht00 Gld01</code></p><h3 id="why-it-exists">Why it exists</h3><p>Useful in boxed layouts where width must stay stable.</p><h3 id="function-formatcostcompactstatic-map-lt-token-integer-gt-cost">Function: <code>formatCostCompactStatic(Map&lt;Token, Integer&gt; cost)</code></h3><h3 id="what-it-does">What it does</h3><p>Formats cost as plain compact text without ANSI.</p><h3 id="use-cases">Use cases</h3><ul><li>action menus</li><li>logs</li><li>UI facade methods</li></ul><h3 id="function-remainingafterbonuses-card-card-player-player">Function: <code>remainingAfterBonuses(Card card, Player player)</code></h3><h3 id="what-it-does">What it does</h3><p>Computes how much cost remains after permanent card bonuses reduce the price.</p><h3 id="logic">Logic</h3><p>For each token color in <code>COST_ORDER</code>:</p><ul><li>read original card cost</li><li>subtract player bonuses</li><li>clamp at zero</li><li>only store positive remainder</li></ul><h3 id="important-rule-connection">Important rule connection</h3><p>This implements Splendor’s permanent-discount idea. It does not spend tokens itself; it only computes the unpaid portion.</p><hr></section>
+<section class="section-card" data-title="File: `ui/ConsoleUI.java`" id="file-ui-consoleui-java"><h2>File: <code>ui/ConsoleUI.java</code></h2><h3 id="purpose">Purpose</h3><p>This is the public console interaction layer.</p><p>It differs from <code>ConsoleRenderer</code>:</p><ul><li><code>ConsoleRenderer</code> only builds strings</li><li><code>ConsoleUI</code> actually clears the screen, prints, pauses, and reads input</li></ul><p>This is a very important architectural distinction.</p><h3 id="constants">Constants</h3><h3 id="ansi-clear"><code>ANSI_CLEAR</code></h3><ul><li>clear-screen escape sequence</li></ul><h3 id="setup-bounds">Setup bounds</h3><ul><li><code>MIN_PLAYERS = 2</code></li><li><code>MAX_PLAYERS = 4</code></li><li><code>MIN_WIN_SCORE = 5</code></li><li><code>MAX_WIN_SCORE = 30</code></li></ul><h3 id="ansi-style-constants">ANSI style constants</h3><ul><li><code>ESC</code>, <code>RESET</code>, <code>BOLD</code>, <code>DIM</code></li></ul><h3 id="fields">Fields</h3><h3 id="sc"><code>sc</code></h3><ul><li>shared <code>Scanner</code> used for all interactive input</li></ul><h3 id="ansienabled"><code>ansiEnabled</code></h3><ul><li>result of <code>AnsiSupport.isSupported()</code></li></ul><h3 id="nested-class-setupoptions">Nested class: <code>SetupOptions</code></h3><h3 id="purpose">Purpose</h3><p>Simple immutable holder for:</p><ul><li><code>numPlayers</code></li><li><code>winScore</code></li></ul><h3 id="why-it-exists">Why it exists</h3><p>It keeps setup-related return values grouped together and keeps the calling code cleaner.</p><h3 id="constructor-consoleui">Constructor: <code>ConsoleUI()</code></h3><h3 id="what-it-does">What it does</h3><p>Creates a new <code>Scanner(System.in)</code> and delegates to the other constructor.</p><h3 id="constructor-consoleui-scanner-scanner">Constructor: <code>ConsoleUI(Scanner scanner)</code></h3><h3 id="what-it-does">What it does</h3><p>Stores the provided scanner and determines ANSI support.</p><h3 id="function-getwinningpoints-int-defaultwinscore">Function: <code>getWinningPoints(int defaultWinScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Shows a standalone setup prompt asking for the target prestige score.</p><h3 id="behavior">Behavior</h3><ul><li>clears the screen</li><li>prints heading and explanation</li><li>calls <code>promptIntInline</code></li></ul><h3 id="function-getnumberofplayers">Function: <code>getNumberOfPlayers()</code></h3><h3 id="what-it-does">What it does</h3><p>Shows a standalone setup prompt asking for player count.</p><h3 id="function-displaygamestate-game-game-int-winscore">Function: <code>displayGameState(Game game, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Clears the screen and prints the full current board using <code>ConsoleRenderer</code>.</p><h3 id="function-displaygameover-game-game-int-winscore">Function: <code>displayGameOver(Game game, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Clears the screen and prints the final board plus results.</p><h3 id="function-displayreservedcards-player-player">Function: <code>displayReservedCards(Player player)</code></h3><h3 id="what-it-does">What it does</h3><p>Clears the screen, prints the reserved-card view, then pauses for Enter.</p><h3 id="important-observation">Important observation</h3><p><code>GameApp</code> also pauses after calling this method, which may create an extra Enter press depending on how the flow is used. That is a small behavioral detail worth noticing.</p><h3 id="function-runlocalsetupmenu-int-defaultplayers-int-defaultwinscore">Function: <code>runLocalSetupMenu(int defaultPlayers, int defaultWinScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Runs a single-screen setup menu where current settings stay visible while the user edits them.</p><h3 id="logic">Logic</h3><ol><li>Clamp defaults into valid ranges</li><li>Loop forever:</li></ol><ul><li>clear screen</li><li>print current settings</li><li>ask for choice</li></ul><ol><li>Handle:</li></ol><ul><li><code>1</code>: edit players</li><li><code>2</code>: edit win score</li><li><code>s</code>: return new <code>SetupOptions</code></li><li><code>q</code>: return <code>null</code></li><li>invalid: show error and pause</li></ul><h3 id="why-it-is-nice-ui">Why it is nice UI</h3><p>The user does not bounce between unrelated setup screens. Everything stays visible in one place.</p><h3 id="function-getplayertypes-int-numplayers">Function: <code>getPlayerTypes(int numPlayers)</code></h3><h3 id="what-it-does">What it does</h3><p>Prompts whether each player is AI or human.</p><h3 id="behavior">Behavior</h3><ul><li>clamps player count into valid range</li><li>uses <code>y/n</code> prompts</li><li>blank input defaults to human</li></ul><h3 id="function-rendergamestatestring-game-game-boolean-ansi-int-winscore">Function: <code>renderGameStateString(Game game, boolean ansi, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Static convenience wrapper around <code>ConsoleRenderer.renderGameStateString</code>.</p><h3 id="function-rendergameoverstring-game-game-boolean-ansi-int-winscore">Function: <code>renderGameOverString(Game game, boolean ansi, int winScore)</code></h3><h3 id="what-it-does">What it does</h3><p>Static convenience wrapper around <code>ConsoleRenderer.renderGameOverString</code>.</p><h3 id="function-formatcostcompactstatic-map-lt-token-integer-gt-cost">Function: <code>formatCostCompactStatic(Map&lt;Token, Integer&gt; cost)</code></h3><h3 id="what-it-does">What it does</h3><p>Static convenience wrapper around <code>ConsoleRenderer.formatCostCompactStatic</code>.</p><h3 id="function-clearscreen">Function: <code>clearScreen()</code></h3><h3 id="what-it-does">What it does</h3><p>Clears the terminal for a redraw.</p><h3 id="behavior">Behavior</h3><ul><li>ANSI enabled: send clear code and flush</li><li>otherwise print many blank lines</li></ul><h3 id="function-readlinelower">Function: <code>readLineLower()</code></h3><h3 id="what-it-does">What it does</h3><p>Reads a line safely and normalizes it for menu use.</p><h3 id="behavior">Behavior</h3><ul><li>returns <code>null</code> on EOF or read failure</li><li>trims</li><li>lowercases</li></ul><h3 id="function-promptintinline-string-label-int-min-int-max-int-current">Function: <code>promptIntInline(String label, int min, int max, int current)</code></h3><h3 id="what-it-does">What it does</h3><p>Prompts until the user gives a valid integer in range.</p><h3 id="behavior">Behavior</h3><ul><li>blank input keeps current value</li><li>EOF returns current value</li><li>invalid input prints a range reminder</li></ul><h3 id="function-pauseforenter">Function: <code>pauseForEnter()</code></h3><h3 id="what-it-does">What it does</h3><p>Shows a “Press Enter to continue...” prompt and waits if input is still available.</p><h3 id="function-clamp-int-value-int-min-int-max">Function: <code>clamp(int value, int min, int max)</code></h3><h3 id="what-it-does">What it does</h3><p>Standard min/max clamping helper.</p><h3 id="function-bold-string-text">Function: <code>bold(String text)</code></h3><h3 id="what-it-does">What it does</h3><p>Applies bold styling if ANSI is enabled.</p><h3 id="function-dim-string-text">Function: <code>dim(String text)</code></h3><h3 id="what-it-does">What it does</h3><p>Applies dim styling if ANSI is enabled.</p><hr></section>
+<section class="section-card" data-title="Cross-File Design Summary" id="cross-file-design-summary"><h2>Cross-File Design Summary</h2><h3 id="1-public-api-vs-internal-helpers">1. Public API vs internal helpers</h3><p>Public-facing classes:</p><ul><li><code>util.GameApp</code></li><li><code>util.AnsiSupport</code></li><li><code>util.SplashScreen</code></li><li><code>util.ui.ConsoleUI</code></li><li><code>util.ui.ConsoleRenderer</code></li></ul><p>Internal package-private helpers:</p><ul><li><code>ConsoleAnsi</code></li><li><code>ConsoleBoxes</code></li><li><code>ConsoleConstants</code></li><li><code>ConsoleGameOverView</code></li><li><code>ConsoleGameStateView</code></li><li><code>ConsoleMarketView</code></li><li><code>ConsoleNobleView</code></li><li><code>ConsolePlayerView</code></li><li><code>ConsoleReservedView</code></li><li><code>ConsoleScoreView</code></li><li><code>ConsoleText</code></li><li><code>ConsoleTokenFormat</code></li></ul><p>This is a clean encapsulation pattern. The outer API stays simple while the implementation remains modular.</p><h3 id="2-rendering-pipeline">2. Rendering pipeline</h3><p>The string-rendering flow is:</p><p><code>ConsoleUI</code> -&gt; <code>ConsoleRenderer</code> -&gt; specific <code>Console*View</code> helpers -&gt; formatting/layout helpers</p><p>That lets both local and network modes reuse the same rendering.</p><h3 id="3-ansi-awareness">3. ANSI-awareness</h3><p>Several classes are designed around ANSI-safe width handling:</p><ul><li><code>AnsiSupport</code></li><li><code>SplashScreen</code></li><li><code>ConsoleAnsi</code></li><li><code>ConsoleText</code></li><li><code>ConsoleBoxes</code></li></ul><p>The key problem they solve is that ANSI escape codes affect string length in memory but not visible width on screen.</p><h3 id="4-game-logic-boundary">4. Game logic boundary</h3><p>The UI/util package generally does not enforce rules directly.</p><p>Instead it asks <code>logic.Game</code> things like:</p><ul><li>can the player take gems?</li><li>can the player buy this card?</li><li>can the player reserve this card?</li><li>is a noble earned?</li></ul><p>That is the correct dependency direction. The UI asks; the game model decides.</p><h3 id="5-repeated-design-pattern-build-strings-don-t-print">5. Repeated design pattern: build strings, don’t print</h3><p>Most UI helpers return strings instead of printing immediately. That gives:</p><ul><li>reusability</li><li>testability</li><li>consistent output between local and network modes</li></ul><p>Only <code>ConsoleUI</code>, <code>GameApp</code>, <code>SplashScreen</code>, and some setup/menu methods directly print.</p><hr></section>
+<section class="section-card" data-title="Likely Professor Questions and Strong Answers" id="likely-professor-questions-and-strong-answers"><h2>Likely Professor Questions and Strong Answers</h2><h3 id="why-split-consoleui-from-consolerenderer">Why split <code>ConsoleUI</code> from <code>ConsoleRenderer</code>?</h3><p>Because interaction and rendering are different responsibilities. <code>ConsoleUI</code> handles the console device, while <code>ConsoleRenderer</code> and the view helpers are pure string builders. That makes the rendering reusable and easier to test.</p><h3 id="why-are-there-so-many-small-ui-classes">Why are there so many small UI classes?</h3><p>Each one owns a specific piece of the screen: players, market, nobles, scores, reserved cards, game over. That prevents one giant renderer file and makes oral explanation much easier.</p><h3 id="why-does-gameapp-call-game-can-before-game-action">Why does <code>GameApp</code> call <code>game.can...</code> before <code>game.action...</code>?</h3><p>It keeps rule validation inside the game logic layer. <code>GameApp</code> is an orchestrator, not the rule engine.</p><h3 id="why-use-package-private-classes-in-util-ui">Why use package-private classes in <code>util.ui</code>?</h3><p>They hide internal rendering details. Other packages only need <code>ConsoleUI</code> or <code>ConsoleRenderer</code>.</p><h3 id="why-use-fixed-widths-and-visible-length-helpers">Why use fixed widths and visible-length helpers?</h3><p>Because the console UI uses ANSI codes and box layouts. Normal string length would misalign borders and wrapped text.</p><h3 id="why-does-gameapp-use-runnable-lists-for-menus">Why does <code>GameApp</code> use <code>Runnable</code> lists for menus?</h3><p>It pairs each displayed menu option with the exact action to execute, avoiding large duplicated switch logic after the menu is built.</p><hr></section>
+<section class="section-card" data-title="Small Weak Spots You Should Be Ready to Mention" id="small-weak-spots-you-should-be-ready-to-mention"><h2>Small Weak Spots You Should Be Ready to Mention</h2><h3 id="gameapp-printactionmenu-player-p-does-not-use-p"><code>GameApp.printActionMenu(Player p)</code> does not use <code>p</code></h3><p>The parameter is unnecessary in the current implementation.</p><h3 id="consoleui-displayreservedcards-already-pauses"><code>ConsoleUI.displayReservedCards(...)</code> already pauses</h3><p><code>GameApp</code> also waits for Enter after calling it, so there may be redundant pausing.</p><h3 id="soft-failure-in-setupgame">Soft failure in <code>setupGame(...)</code></h3><p>If CSV loading fails, the method prints an error but still continues. That avoids crashing immediately, but it can lead to an unusable or incomplete game state.</p><h3 id="some-layout-code-depends-on-fixed-widths">Some layout code depends on fixed widths</h3><p>This is intentional for terminal stability, but it means very narrow terminals may still display poorly.</p><hr></section>
+<section class="section-card" data-title="Final Mental Model" id="final-mental-model"><h2>Final Mental Model</h2><p>If you need a short summary for discussion:</p><ul><li><code>GameApp</code> runs the local game and delegates rules to <code>logic.Game</code></li><li><code>ConsoleUI</code> handles real console interaction</li><li><code>ConsoleRenderer</code> exposes a stable rendering API</li><li>the <code>Console*View</code> classes each render one section of the screen</li><li><code>ConsoleText</code>, <code>ConsoleBoxes</code>, <code>ConsoleAnsi</code>, and <code>ConsoleTokenFormat</code> are low-level support layers</li><li><code>AnsiSupport</code> decides whether styling is safe</li><li><code>SplashScreen</code> is the startup-only visual intro</li></ul><p>If you explain it in that order, the codebase sounds intentional rather than accidental.</p></section></div>
+      <div class="empty" id="empty-state">No sections matched your search. Try a file name like <code>GameApp</code>, a method like <code>runGameLoop</code>, or a concept like <code>ANSI</code>.</div>
+      <p class="footer">Portable single-file export generated from the `src/util` study report.</p>
+    </main>
+  </div>
+
+  <script>
+    const searchInput = document.getElementById("search");
+    const clearButton = document.getElementById("clear-search");
+    const matchCount = document.getElementById("match-count");
+    const emptyState = document.getElementById("empty-state");
+
+    function normalize(text) {
+      return text.toLowerCase().replace(/\s+/g, " ").trim();
+    }
+
+    function updateSearch() {
+      const query = normalize(searchInput.value);
+      let visible = 0;
+      document.querySelectorAll(".section-card").forEach((section) => {
+        const matches = !query || normalize(section.textContent).includes(query);
+        section.hidden = !matches;
+        if (matches) visible += 1;
+      });
+      matchCount.textContent = `${visible} section${visible === 1 ? "" : "s"}`;
+      emptyState.classList.toggle("show", visible === 0);
+    }
+
+    searchInput.addEventListener("input", updateSearch);
+    clearButton.addEventListener("click", () => {
+      searchInput.value = "";
+      updateSearch();
+      searchInput.focus();
+    });
+
+    updateSearch();
+  </script>
+</body>
+</html>

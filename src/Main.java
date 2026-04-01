@@ -6,6 +6,7 @@ import org.fusesource.jansi.AnsiConsole;
 import config.GameConfig;
 import logic.Game;
 import util.GameApp;
+import util.SplashScreen;
 import util.ui.ConsoleUI;
 
 
@@ -17,6 +18,11 @@ public class Main{
         // Use a single Scanner for all input and pass it to ConsoleUI so input isn't consumed by multiple scanners
             Scanner sc = new Scanner(System.in);
             ConsoleUI ui = new ConsoleUI(sc);
+
+            // Show the ASCII splash screen in local mode before setup prompts.
+            SplashScreen.local();
+            System.out.print("Press Enter to continue...");
+            if (sc.hasNextLine()) sc.nextLine();
 
             int winScore = ui.getWinningPoints(GameConfig.getWinningPoints());
 
