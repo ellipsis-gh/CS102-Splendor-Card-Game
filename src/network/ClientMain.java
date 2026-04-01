@@ -13,6 +13,7 @@ import io.NetworkInputHandler;
 import util.AnsiSupport;
 import util.SplashScreen;
 
+// ai generated
 /**
  * Network client — thin terminal.
  *
@@ -178,7 +179,8 @@ public class ClientMain {
         System.out.println("│ Allowed range: 5 to 30        │");
         System.out.println("└───────────────────────────────┘");
         System.out.print("Choice (5-30, Enter for default 15): ");
-        if (!sc.hasNextLine()) { connected = false; return; }
+        if (!sc.hasNextLine()) 
+            { connected = false; return; }
         String line = sc.nextLine().trim();
         out.println(line.isEmpty() ? "15" : line);
         currentMode = InputMode.NONE;
@@ -202,7 +204,7 @@ public class ClientMain {
             try { return Integer.parseInt(args[1].trim()); }
             catch (NumberFormatException ignored) {}
         }
-        return 5080;
+        return 5000;
     }
 
     // -----------------------------------------------------------------------
