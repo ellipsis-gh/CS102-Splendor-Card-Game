@@ -1,41 +1,44 @@
-
 import java.util.Scanner;
 
 import org.fusesource.jansi.AnsiConsole;
 
 import config.GameConfig;
+import engine.GameEngine;
+import engine.GameSetup;
+import io.ConsoleInputHandler;
 import logic.Game;
-import util.GameApp;
+import ui.ConsoleGameRenderer;
 import util.SplashScreen;
 import util.ui.ConsoleUI;
 
+/**
+ * Entry point for local (single-machine) play.
+ *
+ * <p>Responsibilities: show splash, collect setup options, wire the
+ * concrete {@link ConsoleInputHandler} and {@link ConsoleGameRenderer}
+ * into a {@link GameEngine}, and call {@code run()}.</p>
+ */
+public class Main {
 
-
-public class Main{
-    
     public static void main(String[] args) {
         AnsiConsole.systemInstall();
-        // Use a single Scanner for all input and pass it to ConsoleUI so input isn't consumed by multiple scanners
-            Scanner sc = new Scanner(System.in);
-            ConsoleUI ui = new ConsoleUI(sc);
+        Scanner sc = new Scanner(System.in);
 
-            // Show the ASCII splash screen in local mode before setup prompts.
-            SplashScreen.local();
-            System.out.print("Press Enter to continue...");
-            if (sc.hasNextLine()) sc.nextLine();
+        SplashScreen.local();
+        System.out.print("Press Enter to continue...");
+        if (sc.hasNextLine()) sc.nextLine();
 
-            int winScore = ui.getWinningPoints(GameConfig.getWinningPoints());
+        // Setup — still uses ConsoleUI for the interactive setup screens
+        ConsoleUI ui       = new ConsoleUI(sc);
+        int winScore       = ui.getWinningPoints(GameConfig.getWinningPoints());
+        int numPlayers     = ui.getNumberOfPlayers();
+        boolean[] isAI     = ui.getPlayerTypes(numPlayers);
 
-            // setup: get player count and which are AI
-            int numPlayers = ui.getNumberOfPlayers();
-            boolean[] isAI = ui.getPlayerTypes(numPlayers);
+        // Build game + wire engine
+        Game game                    = GameSetup.create(numPlayers, isAI);
+        ConsoleInputHandler  input   = new ConsoleInputHandler(sc);
+        ConsoleGameRenderer  renderer = new ConsoleGameRenderer();
 
-            // build game
-            Game game = GameApp.setupGame(numPlayers, isAI);
-
-            // run the main loop using the same Scanner and UI
-            GameApp.runGameLoop(game, sc, ui, winScore);
-        
+        new GameEngine(game, input, renderer, winScore).run();
     }
-
 }
