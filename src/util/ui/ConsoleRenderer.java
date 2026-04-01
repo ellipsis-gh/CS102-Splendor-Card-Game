@@ -33,10 +33,7 @@ public final class ConsoleRenderer {
     // Prevent instantiation — purely static public facade
     private ConsoleRenderer() {}
 
-    // =========================================================================
-    // PUBLIC API
-    // =========================================================================
-
+    
     /**
      * Renders the full in-game board view.
      *
