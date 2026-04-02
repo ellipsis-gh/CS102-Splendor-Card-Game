@@ -21,10 +21,11 @@ import model.Token;
 class InsaneAI {
 
     // -----------------------------------------------------------------------
-    // OpenAI API settings — hard-coded as requested
+    // OpenAI API settings
     // -----------------------------------------------------------------------
+    // Put your real OpenAI API key here.
     static final String API_KEY = "key_here";
-    static final String MODEL   = "gpt-4o";
+    static final String MODEL   = "gpt-4o-mini";
 
     // -----------------------------------------------------------------------
     // Entry point

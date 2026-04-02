@@ -137,17 +137,16 @@ final class ConsoleFormat {
         // tokenShortLabel gives a 3-char abbreviation: Blk Blu Grn Red Wht
         for (Token t : HelperFunctions.COST_ORDER) {
             int v = Math.min(99, safe.getOrDefault(t, 0)); // cap at 99 for formatting
+            if (sb.length() > 0) sb.append('|');
             sb.append(HelperFunctions.colorizeToken(t, HelperFunctions.tokenShortLabel(t), ansi))
-              .append(String.format("%02d", v)) // always 2 digits: 00, 01, … 99
-              .append(' ');
+              .append(String.format("%02d", v)); // always 2 digits: 00, 01, … 99
         }
 
         if (includeGold) {
             int g = Math.min(99, safe.getOrDefault(Token.GOLD, 0));
+            if (sb.length() > 0) sb.append('|');
             sb.append(HelperFunctions.colorizeToken(Token.GOLD, HelperFunctions.tokenShortLabel(Token.GOLD), ansi))
               .append(String.format("%02d", g));
-        } else if (sb.length() > 0) {
-            sb.setLength(sb.length() - 1); // trim the trailing space after the last colour
         }
 
         return sb.toString().trim();

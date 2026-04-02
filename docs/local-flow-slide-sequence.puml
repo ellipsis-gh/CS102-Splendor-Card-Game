@@ -1,0 +1,61 @@
+@startuml
+title Splendor - Local Game Flow
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ArrowThickness 2
+skinparam ParticipantPadding 36
+skinparam BoxPadding 16
+skinparam SequenceLifeLineBorderColor black
+skinparam SequenceLifeLineBackgroundColor white
+skinparam ParticipantBorderColor black
+skinparam ParticipantBackgroundColor white
+skinparam ActorBorderColor black
+skinparam ActorBackgroundColor white
+
+actor "User" as User
+
+participant "Main" as Main
+participant "ConsoleUI" as ConsoleUI
+participant "GameSetup" as GameSetup
+participant "GameEngine" as GameEngine
+participant "ConsoleInputHandler" as ConsoleInputHandler
+participant "ConsoleGameRenderer" as ConsoleGameRenderer
+
+User -> Main : start local game
+Main -> ConsoleUI : ask setup questions
+ConsoleUI -> User : number of players / AI / difficulty
+User -> ConsoleUI : enter choices
+ConsoleUI -> Main : setup values
+
+Main -> GameSetup : create game
+GameSetup --> Main : Game
+
+Main -> ConsoleInputHandler : create input handler
+Main -> ConsoleGameRenderer : create renderer
+Main -> GameEngine : start game loop
+
+loop each turn
+  GameEngine -> ConsoleGameRenderer : render game state
+  ConsoleGameRenderer -> User : display board
+
+  alt human turn
+    GameEngine -> ConsoleGameRenderer : show menu
+    ConsoleGameRenderer -> User : display choices
+    GameEngine -> ConsoleInputHandler : request input
+    User -> ConsoleInputHandler : enter move
+    ConsoleInputHandler -> GameEngine : return choice
+  else AI turn
+    GameEngine -> GameEngine : generate AI move
+  end
+
+  GameEngine -> ConsoleGameRenderer : render result/update
+  ConsoleGameRenderer -> User : display result
+end
+
+GameEngine -> ConsoleGameRenderer : render final state
+ConsoleGameRenderer -> User : display game over
+
+@enduml

@@ -1,0 +1,79 @@
+@startuml
+title Splendor Card Game - Networking Flow
+
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam ArrowThickness 2
+skinparam ParticipantPadding 25
+skinparam BoxPadding 10
+skinparam ResponseMessageBelowArrow true
+
+actor "Player" as Player
+
+box "Client Side" #EAF3FF
+participant "ClientMain" as ClientMain
+end box
+
+box "Server Side" #FFF3E8
+participant "ServerMain" as ServerMain
+participant "GameServer" as GameServer
+participant "ClientHandler" as ClientHandler
+participant "GameSetup" as GameSetup
+participant "GameEngine" as GameEngine
+participant "NetworkInputHandler" as NetworkInputHandler
+participant "NetworkGameRenderer" as NetworkGameRenderer
+participant "NetworkFormatter" as NetworkFormatter
+end box
+
+Player -> ClientMain : run network client
+ClientMain -> ServerMain : connect to server socket
+ServerMain -> GameServer : start()
+GameServer -> ClientHandler : wrap connected socket
+ClientHandler --> GameServer : readLine() / send()
+
+GameServer -> ClientHandler : ask for player name
+ClientHandler -> ClientMain : send("Enter your name:")
+Player -> ClientMain : type name
+ClientMain -> ClientHandler : send typed line
+ClientHandler -> GameServer : return name
+
+GameServer -> GameSetup : create(...)
+GameSetup --> GameServer : Game
+
+GameServer -> GameEngine : new GameEngine(game,\nNetworkInputHandler,\nNetworkGameRenderer,\nwinScore)
+GameServer -> NetworkInputHandler : create with clients + game
+GameServer -> NetworkGameRenderer : create with clients + game
+
+loop each turn
+  GameEngine -> NetworkGameRenderer : renderGameState(game, winScore)
+  NetworkGameRenderer -> NetworkFormatter : formatGameState(game, winScore)
+  NetworkFormatter --> NetworkGameRenderer : formatted board string
+  NetworkGameRenderer -> ClientHandler : send STATE_BEGIN ... STATE_END
+  ClientHandler -> ClientMain : send full board state
+  ClientMain -> ClientMain : redraw terminal
+
+  alt human player's turn
+    GameEngine -> NetworkInputHandler : readMenuChoice() / readGemSelection() / readCardIndex()
+    NetworkInputHandler -> ClientHandler : send INPUT_NEEDED
+    ClientHandler -> ClientMain : prompt client for one line
+    Player -> ClientMain : type command
+    ClientMain -> ClientHandler : send typed line
+    ClientHandler -> NetworkInputHandler : return input
+    NetworkInputHandler --> GameEngine : validated choice
+    GameEngine -> GameEngine : apply move using Game
+  else AI player's turn
+    GameEngine -> GameEngine : ask BotMain for action
+    GameEngine -> GameEngine : apply AI move using Game
+  end
+
+  GameEngine -> NetworkGameRenderer : renderMessage / renderBroadcast
+  NetworkGameRenderer -> ClientHandler : send updates to one or both clients
+  ClientHandler -> ClientMain : deliver messages
+end
+
+GameEngine -> NetworkGameRenderer : renderGameOver(game, winScore)
+NetworkGameRenderer -> NetworkFormatter : formatGameState(game, winScore)
+NetworkGameRenderer -> ClientHandler : send final board + result
+ClientHandler -> ClientMain : show final state
+
+@enduml

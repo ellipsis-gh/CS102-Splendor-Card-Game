@@ -330,12 +330,12 @@ final class ConsoleViews {
 
         // Token row — fixed-width so borders never shift when counts change
         lines.add(lb + HelperFunctions.fitLine(
-                "Tokens:  " + ConsoleFormat.formatTokenMapFixed(player.getTokens(), true, ansi),
+                "Tokens | " + ConsoleFormat.formatTokenMapFixed(player.getTokens(), true, ansi),
                 inner) + rb);
 
         // Bonus row — no GOLD column (bonuses are only the 5 regular colours)
         lines.add(lb + HelperFunctions.fitLine(
-                "Bonuses: " + ConsoleFormat.formatTokenMapFixed(player.getBonuses(), false, ansi),
+                "Bonus  | " + ConsoleFormat.formatTokenMapFixed(player.getBonuses(), false, ansi),
                 inner) + rb);
 
         lines.add(bottom);

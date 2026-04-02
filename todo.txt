@@ -1,3 +1,0 @@
-comment all the files
-arange files
-add an actual frontend in localhost

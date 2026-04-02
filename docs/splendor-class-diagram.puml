@@ -1,225 +1,162 @@
 @startuml
-title Splendor Card Game - SOLID-Oriented Class Diagram
+title Splendor Card Game - Current src/ Class Diagram (Simplified)
 
 skinparam packageStyle rectangle
 skinparam classAttributeIconSize 0
 skinparam shadowing false
+skinparam linetype ortho
+skinparam packageTitleAlignment center
+skinparam ArrowThickness 5
+skinparam ClassBorderThickness 4
+skinparam PackageBorderThickness 4
+skinparam nodesep 130
+skinparam ranksep 150
 left to right direction
 
-package "Domain Abstractions" {
+package "src/interfaces" as InterfacesPkg {
   interface ICard
   interface IDeck
   interface INoble
   interface IBoard
   interface IPlayer
+  interface IBank
 }
 
-package "Domain Model" {
+package "src/model" as ModelPkg {
   enum Token
+  enum Difficulty
 
-  class Card {
-    - level : int
-    - prestigePoints : int
-    - bonus : Token
-    - cost : Map<Token, Integer>
-  }
-
-  class Noble {
-    - prestigePoints : int
-    - cost : Map<Token, Integer>
-  }
-
-  class Deck {
-    - level : int
-    - cards : List<Card>
-    + shuffle()
-    + draw() : Card
-  }
-
-  class Board {
-    - availableTokens : Map<Token, Integer>
-    - nobles : List<Noble>
-    - level1Visible : Card[]
-    - level2Visible : Card[]
-    - level3Visible : Card[]
-    + refillMarket()
-    + getVisibleCards(level : int) : Card[]
-    + drawFromDeck(level : int) : Card
-  }
-
-  class Player {
-    - name : String
-    - isHuman : boolean
-    - tokens : Map<Token, Integer>
-    - hand : List<Card>
-    - purchasedCards : List<Card>
-    - nobles : List<Noble>
-    + canAffordCard(card : Card) : boolean
-    + payForCard(card : Card, board : Board)
-    + buyCard(card : Card)
-    + reserveCard(card : Card)
-    + getScore() : int
-  }
+  class Card
+  class Deck
+  class Noble
+  class Board
+  class Player
+  class Bank
 }
 
-package "Game Logic" {
-  class Game {
-    - board : Board
-    - players : List<Player>
-    - currentPlayerIndex : int
-    - gameOver : boolean
-    + getCurrentPlayer() : Player
-    + nextTurn()
-    + takeThreeDifferentGems(player : Player, t1 : Token, t2 : Token, t3 : Token)
-    + takeTwoSameGems(player : Player, token : Token)
-    + buyVisibleCard(player : Player, level : int, slot : int)
-    + buyReservedCard(player : Player, reservedIndex : int)
-    + reserveVisibleCard(player : Player, level : int, slot : int)
-    + reserveDeckCard(player : Player, level : int)
-    + checkAndAwardNoble(player : Player) : Noble
-  }
-
-  class SplendorAI {
-    + chooseAction(player : Player, board : Board) : String
-    + chooseTokensToReturn(player : Player, board : Board, toReturn : int) : List<Token>
-  }
+package "src/config" as ConfigPkg {
+  class GameConfig
 }
 
-package "Application / Setup" {
-  class CardLoader {
-    + loadCards(path : String) : List<Card>
-    + loadNobles(path : String) : List<Noble>
-  }
-
-  class GameConfig {
-    + getWinningPoints() : int
-    + getCardFilePath() : String
-    + getNobleFilePath() : String
-    + getInitialNobles(playerCount : int) : int
-  }
-
-  class GameApp {
-    + setupGame(numPlayers : int, isAI : boolean[]) : Game
-    + setupGame(numPlayers : int, isAI : boolean[], playerNames : String[]) : Game
-    + runGameLoop(game : Game, sc : Scanner, ui : ConsoleUI)
-  }
+package "src/game" as DataPkg {
+  class CardLoader
 }
 
-package "Presentation" {
-  class ConsoleUI {
-    + getNumberOfPlayers() : int
-    + getPlayerTypes(numberOfPlayers : int) : boolean[]
-    + renderGameStateString(game : Game, ansi : boolean) : String
-    + displayGameState(game : Game)
-    + displayReservedCards(player : Player)
-  }
-
-  class NetworkFormatter {
-    + formatGameState(game : Game) : String
-  }
-
-  class AnsiSupport {
-    + isSupported() : boolean
-  }
+package "src/logic" as LogicPkg {
+  class Game
+  class BotMain
+  class EasyAI
+  class MediumAI
+  class HardAI
+  class InsaneAI
+  class SplendorAI
+  class AIHelpers
 }
 
-package "Transport / Entry Points" {
-  class Main {
-    + main(args : String[])
-  }
-
-  class ServerMain {
-    + main(args : String[])
-  }
-
-  class GameServer {
-    - port : int
-    + start()
-  }
-
-  class ClientMain {
-    + main(args : String[])
-  }
-
-  class ClientHandler {
-    - socket : Socket
-    - playerName : String
-    + readLine() : String
-    + send(message : String)
-    + close()
-  }
+package "src/engine" as EnginePkg {
+  class GameSetup
+  class GameEngine
 }
 
-ICard <|-[#E67E22].. Card
-IDeck <|-[#E67E22].. Deck
-INoble <|-[#E67E22].. Noble
-IBoard <|-[#E67E22].. Board
-IPlayer <|-[#E67E22].. Player
+package "src/io" as IOPkg {
+  interface InputHandler
+  class ConsoleInputHandler
+  class NetworkInputHandler
+}
 
+package "src/ui" as UIPkg {
+  interface GameRenderer
+  class ConsoleGameRenderer
+  class NetworkGameRenderer
+}
+
+package "src/network" as NetworkPkg {
+  class ServerMain
+  class GameServer
+  class ClientMain
+  class ClientHandler
+  class NetworkFormatter
+}
+
+package "src/util" as UtilPkg {
+  class AnsiSupport
+  class SplashScreen
+  class GameApp
+}
+
+package "src/util/ui" as UtilUIPkg {
+  class ConsoleUI
+  class ConsoleRenderer
+  class ConsoleViews
+  class ConsoleFormat
+  class HelperFunctions
+}
+
+class Main
+
+' Layout guides to reduce crossing and keep related packages together.
+ConfigPkg -[hidden]-> DataPkg
+DataPkg -[hidden]-> EnginePkg
+EnginePkg -[hidden]-> LogicPkg
+LogicPkg -[hidden]-> ModelPkg
+ModelPkg -[hidden]-> InterfacesPkg
+
+Main -[hidden]down-> NetworkPkg
+NetworkPkg -[hidden]down-> UtilPkg
+EnginePkg -[hidden]down-> IOPkg
+IOPkg -[hidden]-> UIPkg
+UIPkg -[hidden]down-> UtilUIPkg
+
+' Core ownership relationships
 Board *-[#7F8C8D]- "3" Deck
 Board *-[#7F8C8D]- "0..*" Noble
-Board *-[#7F8C8D]- "12" Card : visible market
-Deck *-[#7F8C8D]- "0..*" Card
-Player *-[#7F8C8D]- "0..*" Card : reserved
-Player *-[#7F8C8D]- "0..*" Card : purchased
+Board *-[#7F8C8D]- "12" Card
+Player *-[#7F8C8D]- "0..*" Card : reserved + purchased
 Player *-[#7F8C8D]- "0..*" Noble
 Game *-[#7F8C8D]- Board
-Game *-[#7F8C8D]- "2..*" Player
+Game *-[#7F8C8D]- "2..4" Player
 
-Card -[#7F8C8D,dashed]-> Token
-Noble -[#7F8C8D,dashed]-> Token
-Board -[#7F8C8D,dashed]-> Token
-Player -[#7F8C8D,dashed]-> Token
+' Interfaces and abstractions
+ModelPkg -[#E67E22,thickness=3,dashed]-> InterfacesPkg : implements interfaces
+InputHandler <|-[#2980B9].. ConsoleInputHandler
+InputHandler <|-[#2980B9].. NetworkInputHandler
+GameRenderer <|-[#27AE60].. ConsoleGameRenderer
+GameRenderer <|-[#27AE60].. NetworkGameRenderer
 
-SplendorAI -[#8E44AD,dashed]-> Board
-SplendorAI -[#8E44AD,dashed]-> Player
-SplendorAI -[#8E44AD,dashed]-> Card
+' Local and network orchestration
+Main -[#34495E,dashed]-> GameSetup
+Main -[#34495E,dashed]-> GameEngine
+Main -[#34495E,dashed]-> ConsoleUI
 
-CardLoader -[#2C3E50,dashed]-> Card
-CardLoader -[#2C3E50,dashed]-> Noble
-GameApp -[#2980B9,dashed]-> Game
-GameApp -[#2980B9,dashed]-> CardLoader
-GameApp -[#2980B9,dashed]-> GameConfig
-GameApp -[#2980B9,dashed]-> ConsoleUI
-GameApp -[#2980B9,dashed]-> SplendorAI
-
-ConsoleUI -[#27AE60,dashed]-> Game
-ConsoleUI -[#27AE60,dashed]-> Player
-ConsoleUI -[#27AE60,dashed]-> AnsiSupport
-NetworkFormatter -[#27AE60,dashed]-> Game
-NetworkFormatter -[#27AE60,dashed]-> ConsoleUI
-
-Main -[#2980B9,dashed]-> GameApp
-Main -[#2980B9,dashed]-> ConsoleUI
 ServerMain -[#C0392B,dashed]-> GameServer
-GameServer -[#C0392B,dashed]-> Game
-GameServer -[#C0392B,dashed]-> GameApp
-GameServer -[#C0392B,dashed]-> NetworkFormatter
-GameServer -[#C0392B,dashed]-> ClientHandler
-ClientMain -[#C0392B,dashed]-> NetworkFormatter
-ClientMain -[#27AE60,dashed]-> AnsiSupport
+GameServer -[#C0392B,dashed]-> GameSetup
+GameServer -[#C0392B,dashed]-> GameEngine
+GameServer -[#C0392B,dashed]-> NetworkInputHandler
+GameServer -[#C0392B,dashed]-> NetworkGameRenderer
 
-note right of "Domain Abstractions"
-  Interface Segregation:
-  small focused interfaces
-  for core game entities.
-end note
+' Setup and engine
+GameSetup -[#2C3E50,dashed]-> GameConfig
+GameSetup -[#2C3E50,dashed]-> CardLoader
+GameSetup -[#2C3E50,dashed]-> Game
+GameSetup -[#2C3E50,dashed]-> ModelPkg
 
-note right of "Game Logic"
-  Single Responsibility:
-  game rules and AI decisions
-  are separated from UI/networking.
-end note
+GameEngine -[#8E44AD,dashed]-> Game
+GameEngine -[#8E44AD,dashed]-> InputHandler
+GameEngine -[#8E44AD,dashed]-> GameRenderer
+GameEngine -[#8E44AD,dashed]-> BotMain
 
-note right of "Presentation"
-  Presentation classes only render
-  and collect/display information.
-end note
+' AI structure
+BotMain -[#9B59B6,dashed]-> EasyAI
+BotMain -[#9B59B6,dashed]-> MediumAI
+BotMain -[#9B59B6,dashed]-> HardAI
+BotMain -[#9B59B6,dashed]-> InsaneAI
+BotMain -[#9B59B6,dashed]-> AIHelpers
+SplendorAI -[#9B59B6,dashed]-> BotMain
 
-note right of "Transport / Entry Points"
-  Entry-point and transport classes
-  coordinate flow without owning
-  domain rules.
-end note
+' Rendering reuse
+ConsoleUI -[#27AE60,dashed]-> ConsoleRenderer
+ConsoleGameRenderer -[#27AE60,dashed]-> ConsoleRenderer
+NetworkGameRenderer -[#27AE60,dashed]-> NetworkFormatter
+NetworkFormatter -[#27AE60,dashed]-> ConsoleUI
 
 @enduml

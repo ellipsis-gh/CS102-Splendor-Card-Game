@@ -1,0 +1,70 @@
+@startuml
+title Splendor - 2 Player Networking Flow
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ArrowThickness 2
+skinparam ParticipantPadding 36
+skinparam BoxPadding 16
+skinparam SequenceLifeLineBorderColor black
+skinparam SequenceLifeLineBackgroundColor white
+skinparam ParticipantBorderColor black
+skinparam ParticipantBackgroundColor white
+skinparam ActorBorderColor black
+skinparam ActorBackgroundColor white
+
+actor "User 1" as User1
+actor "User 2" as User2
+
+participant "ClientMain\n(Player 1)" as Client1
+participant "GameServer" as GameServer
+participant "ClientMain\n(Player 2)" as Client2
+participant "GameEngine" as GameEngine
+participant "NetworkInputHandler" as NetworkInputHandler
+participant "NetworkGameRenderer" as NetworkGameRenderer
+
+User1 -> GameServer : start server first
+User1 -> Client1 : start client
+Client1 -> GameServer : connect
+GameServer -> Client1 : ask for name
+User1 -> Client1 : enter name
+Client1 -> GameServer : send name
+
+User2 -> Client2 : start client
+Client2 -> GameServer : connect
+GameServer -> Client2 : ask for name
+User2 -> Client2 : enter name
+Client2 -> GameServer : send name
+
+GameServer -> GameEngine : start 2-player game
+
+loop each turn
+  GameEngine -> NetworkGameRenderer : render game state
+  NetworkGameRenderer -> Client1 : send board state
+  NetworkGameRenderer -> Client2 : send board state
+
+  GameEngine -> NetworkInputHandler : request current player's input
+
+  alt Player 1 turn
+    NetworkInputHandler -> Client1 : ask for command
+    User1 -> Client1 : enter move
+    Client1 -> NetworkInputHandler : send move
+  else Player 2 turn
+    NetworkInputHandler -> Client2 : ask for command
+    User2 -> Client2 : enter move
+    Client2 -> NetworkInputHandler : send move
+  end
+
+  NetworkInputHandler -> GameEngine : validated move
+  GameEngine -> NetworkGameRenderer : render result/update
+  NetworkGameRenderer -> Client1 : send update
+  NetworkGameRenderer -> Client2 : send update
+end
+
+GameEngine -> NetworkGameRenderer : render final state
+NetworkGameRenderer -> Client1 : game over
+NetworkGameRenderer -> Client2 : game over
+
+@enduml

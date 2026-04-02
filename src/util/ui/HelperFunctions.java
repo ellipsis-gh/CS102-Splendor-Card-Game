@@ -128,12 +128,13 @@ final class HelperFunctions {
      */
     static String colorizeToken(Token token, String text, boolean ansi) {
         if (!ansi) return text;
+        if (token == Token.BLACK) return text;
         // ANSI foreground color codes for each gem type
         String color = switch (token) {
             case GREEN -> ESC + "32m";   // green
             case WHITE -> ESC + "97m";   // bright white
             case BLUE  -> ESC + "34m";   // blue
-            case BLACK -> ESC + "90m";   // dark gray (bright black)
+            case BLACK -> ESC + "37m";
             case RED   -> ESC + "31m";   // red
             case GOLD  -> ESC + "33m";   // yellow/gold
         };
@@ -169,7 +170,7 @@ final class HelperFunctions {
             case GREEN -> ESC + "1;32m";   // bold green
             case WHITE -> ESC + "1;37m";   // bold white
             case BLUE  -> ESC + "1;34m";   // bold blue
-            case BLACK -> ESC + "1;90m";   // bold dark gray
+            case BLACK -> ESC + "1;37m";   // use bold white for better terminal support
             case RED   -> ESC + "1;31m";   // bold red
             case GOLD  -> ESC + "1;33m";   // bold yellow
         };

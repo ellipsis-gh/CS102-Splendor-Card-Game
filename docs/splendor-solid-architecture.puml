@@ -1,16 +1,18 @@
 @startuml
-title Splendor Card Game - SOLID Architecture Diagram
+title Splendor Card Game - Current src/ Architecture (Simplified)
 
 skinparam packageStyle rectangle
 skinparam classAttributeIconSize 0
 skinparam shadowing false
+skinparam linetype ortho
+skinparam packageTitleAlignment center
 skinparam ArrowThickness 3
 skinparam ClassBorderThickness 2
 skinparam PackageBorderThickness 2
 skinparam NoteBorderThickness 2
 left to right direction
 
-package "Abstractions" {
+package "src/interfaces" as InterfacesPkg {
   interface ICard
   interface IDeck
   interface INoble
@@ -19,170 +21,146 @@ package "Abstractions" {
   interface IBank
 }
 
-package "Domain Model" {
+package "src/model" as ModelPkg {
   enum Token
-
-  class Card {
-    - level : int
-    - prestigePoints : int
-    - bonus : Token
-    - cost : Map<Token, Integer>
-  }
-
-  class Noble {
-    - prestigePoints : int
-    - cost : Map<Token, Integer>
-  }
-
-  class Deck {
-    - level : int
-    - cards : List<Card>
-  }
-
-  class Board {
-    - availableTokens : Map<Token, Integer>
-    - nobles : List<Noble>
-    - visibleCards : Card[]
-  }
-
-  class Player {
-    - name : String
-    - isHuman : boolean
-    - tokens : Map<Token, Integer>
-    - hand : List<Card>
-    - purchasedCards : List<Card>
-    - nobles : List<Noble>
-  }
-
+  enum Difficulty
+  class Card
+  class Deck
+  class Noble
+  class Board
+  class Player
   class Bank
 }
 
-package "Core Logic" {
-  class Game {
-    + getCurrentPlayer() : Player
-    + nextTurn()
-    + buyVisibleCard(player : Player, level : int, slot : int)
-    + reserveVisibleCard(player : Player, level : int, slot : int)
-    + takeThreeDifferentGems(player : Player, t1 : Token, t2 : Token, t3 : Token)
-    + checkAndAwardNoble(player : Player) : Noble
-  }
-
-  class SplendorAI {
-    + chooseAction(player : Player, board : Board) : String
-  }
-}
-
-package "Setup / Services" {
+package "src/config" as ConfigPkg {
   class GameConfig
+}
+
+package "src/game" as DataPkg {
   class CardLoader
-  class GameApp {
-    + setupGame(numPlayers : int, isAI : boolean[]) : Game
-    + setupGame(numPlayers : int, isAI : boolean[], playerNames : String[]) : Game
-    + runGameLoop(game : Game, sc : Scanner, ui : ConsoleUI)
-  }
 }
 
-package "Presentation" {
-  class SplashScreen
-  class ConsoleUI {
-    + getNumberOfPlayers() : int
-    + getPlayerTypes(numberOfPlayers : int) : boolean[]
-    + displayGameState(game : Game, winScore : int)
-    + displayReservedCards(player : Player)
-  }
-
-  class ConsoleRenderer {
-    + renderGameStateString(game : Game, ansi : boolean, winScore : int) : String
-  }
-
-  class AnsiSupport
+package "src/logic" as LogicPkg {
+  class Game
+  class BotMain
+  class EasyAI
+  class MediumAI
+  class HardAI
+  class InsaneAI
+  class SplendorAI
+  class AIHelpers
 }
 
-package "Networking" {
+package "src/engine" as EnginePkg {
+  class GameSetup
+  class GameEngine
+}
+
+package "src/io" as IOPkg {
+  interface InputHandler
+  class ConsoleInputHandler
+  class NetworkInputHandler
+}
+
+package "src/ui" as UIPkg {
+  interface GameRenderer
+  class ConsoleGameRenderer
+  class NetworkGameRenderer
+}
+
+package "src/network" as NetworkPkg {
   class ServerMain
-  class GameServer {
-    + start()
-  }
+  class GameServer
   class ClientMain
   class ClientHandler
-  class NetworkFormatter {
-    + formatGameState(game : Game, winScore : int) : String
-  }
+  class NetworkFormatter
+}
+
+package "src/util" as UtilPkg {
+  class AnsiSupport
+  class SplashScreen
+  class GameApp
+}
+
+package "src/util/ui" as UtilUIPkg {
+  class ConsoleUI
+  class ConsoleRenderer
+  class ConsoleViews
+  class ConsoleFormat
+  class HelperFunctions
 }
 
 class Main
 
-ICard <|-[#E67E22,thickness=3].. Card
-IDeck <|-[#E67E22,thickness=3].. Deck
-INoble <|-[#E67E22,thickness=3].. Noble
-IBoard <|-[#E67E22,thickness=3].. Board
-IPlayer <|-[#E67E22,thickness=3].. Player
-IBank <|-[#E67E22,thickness=3].. Bank
+' Layout guides to reduce crossing and keep responsibilities in columns.
+ConfigPkg -[hidden]-> DataPkg
+DataPkg -[hidden]-> EnginePkg
+EnginePkg -[hidden]-> LogicPkg
+LogicPkg -[hidden]-> ModelPkg
+ModelPkg -[hidden]-> InterfacesPkg
 
-Board *-[#7F8C8D,thickness=3]- "3" Deck
-Board *-[#7F8C8D,thickness=3]- "0..*" Noble
-Board *-[#7F8C8D,thickness=3]- "12" Card
-Player *-[#7F8C8D,thickness=3]- "0..*" Card
-Player *-[#7F8C8D,thickness=3]- "0..*" Noble
-Game *-[#7F8C8D,thickness=3]- Board
-Game *-[#7F8C8D,thickness=3]- "2..*" Player
+Main -[hidden]down-> NetworkPkg
+NetworkPkg -[hidden]down-> UtilPkg
+EnginePkg -[hidden]down-> IOPkg
+IOPkg -[hidden]-> UIPkg
+UIPkg -[hidden]down-> UtilUIPkg
 
-Game -[#8E44AD,thickness=3,dashed]-> Player
-Game -[#8E44AD,thickness=3,dashed]-> Card
-Game -[#8E44AD,thickness=3,dashed]-> Token
-SplendorAI -[#8E44AD,thickness=3,dashed]-> Board
-SplendorAI -[#8E44AD,thickness=3,dashed]-> Player
+' Interface-based design
+ModelPkg -[#E67E22,thickness=4,dashed]-> InterfacesPkg : implements interfaces
+InputHandler <|-[#2980B9,thickness=3].. ConsoleInputHandler
+InputHandler <|-[#2980B9,thickness=3].. NetworkInputHandler
+GameRenderer <|-[#27AE60,thickness=3].. ConsoleGameRenderer
+GameRenderer <|-[#27AE60,thickness=3].. NetworkGameRenderer
 
-CardLoader -[#2C3E50,thickness=3,dashed]-> Card
-CardLoader -[#2C3E50,thickness=3,dashed]-> Noble
-GameApp -[#2980B9,thickness=4,dashed]-> GameConfig
-GameApp -[#2980B9,thickness=4,dashed]-> CardLoader
-GameApp -[#2980B9,thickness=4,dashed]-> Game
-GameApp -[#2980B9,thickness=4,dashed]-> ConsoleUI
-GameApp -[#2980B9,thickness=4,dashed]-> SplendorAI
+' Main local flow
+Main -[#34495E,thickness=4,dashed]-> SplashScreen
+Main -[#34495E,thickness=4,dashed]-> ConsoleUI
+Main -[#34495E,thickness=4,dashed]-> GameSetup
+Main -[#34495E,thickness=4,dashed]-> ConsoleInputHandler
+Main -[#34495E,thickness=4,dashed]-> ConsoleGameRenderer
+Main -[#34495E,thickness=4,dashed]-> GameEngine
 
-ConsoleUI -[#27AE60,thickness=3,dashed]-> Game
+' Setup and orchestration
+GameSetup -[#2C3E50,thickness=4,dashed]-> GameConfig
+GameSetup -[#2C3E50,thickness=4,dashed]-> CardLoader
+GameSetup -[#2C3E50,thickness=4,dashed]-> ModelPkg
+GameSetup -[#2C3E50,thickness=4,dashed]-> Game
+
+GameEngine -[#8E44AD,thickness=4,dashed]-> Game
+GameEngine -[#8E44AD,thickness=4,dashed]-> InputHandler
+GameEngine -[#8E44AD,thickness=4,dashed]-> GameRenderer
+GameEngine -[#8E44AD,thickness=4,dashed]-> BotMain
+
+' Logic and AI
+BotMain -[#9B59B6,thickness=3,dashed]-> EasyAI
+BotMain -[#9B59B6,thickness=3,dashed]-> MediumAI
+BotMain -[#9B59B6,thickness=3,dashed]-> HardAI
+BotMain -[#9B59B6,thickness=3,dashed]-> InsaneAI
+BotMain -[#9B59B6,thickness=3,dashed]-> AIHelpers
+BotMain -[#9B59B6,thickness=3,dashed]-> Difficulty
+SplendorAI -[#9B59B6,thickness=3,dashed]-> BotMain
+Game -[#7F8C8D,thickness=3,dashed]-> ModelPkg
+
+' UI / rendering reuse
 ConsoleUI -[#27AE60,thickness=3,dashed]-> ConsoleRenderer
 ConsoleUI -[#27AE60,thickness=3,dashed]-> AnsiSupport
-NetworkFormatter -[#27AE60,thickness=3,dashed]-> ConsoleRenderer
+ConsoleGameRenderer -[#27AE60,thickness=3,dashed]-> ConsoleRenderer
+ConsoleGameRenderer -[#27AE60,thickness=3,dashed]-> AnsiSupport
+NetworkGameRenderer -[#27AE60,thickness=3,dashed]-> NetworkFormatter
+NetworkGameRenderer -[#27AE60,thickness=3,dashed]-> ClientHandler
+NetworkFormatter -[#27AE60,thickness=3,dashed]-> ConsoleUI
 NetworkFormatter -[#27AE60,thickness=3,dashed]-> Game
 
-Main -[#2980B9,thickness=4,dashed]-> SplashScreen
-Main -[#2980B9,thickness=4,dashed]-> ConsoleUI
-Main -[#2980B9,thickness=4,dashed]-> GameApp
-
+' Network flow
+ServerMain -[#C0392B,thickness=4,dashed]-> SplashScreen
 ServerMain -[#C0392B,thickness=4,dashed]-> GameServer
 GameServer -[#C0392B,thickness=4,dashed]-> ClientHandler
-GameServer -[#C0392B,thickness=4,dashed]-> GameApp
-GameServer -[#C0392B,thickness=4,dashed]-> Game
-GameServer -[#C0392B,thickness=4,dashed]-> NetworkFormatter
+GameServer -[#C0392B,thickness=4,dashed]-> GameSetup
+GameServer -[#C0392B,thickness=4,dashed]-> GameEngine
+GameServer -[#C0392B,thickness=4,dashed]-> NetworkInputHandler
+GameServer -[#C0392B,thickness=4,dashed]-> NetworkGameRenderer
+ClientMain -[#C0392B,thickness=4,dashed]-> SplashScreen
 ClientMain -[#C0392B,thickness=4,dashed]-> NetworkFormatter
 ClientMain -[#27AE60,thickness=3,dashed]-> AnsiSupport
-
-note right of "Abstractions"
-  Interface Segregation:
-  core entities are represented
-  by small focused interfaces.
-end note
-
-note right of "Core Logic"
-  Single Responsibility:
-  Game owns rules and state.
-  SplendorAI owns move choice.
-end note
-
-note right of "Presentation"
-  Open/Closed:
-  rendering is separated from
-  rules, so UI presentation can
-  evolve without changing Game.
-end note
-
-note right of "Networking"
-  Dependency direction:
-  network classes coordinate
-  sockets and delegate to
-  shared Game logic.
-end note
 
 @enduml

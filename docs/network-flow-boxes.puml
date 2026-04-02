@@ -1,0 +1,36 @@
+@startuml
+title Splendor Card Game - Networking Files Only
+
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowThickness 2
+skinparam nodesep 90
+skinparam ranksep 110
+skinparam DefaultTextAlignment center
+left to right direction
+
+rectangle "ServerMain.java" as ServerMain
+rectangle "GameServer.java" as GameServer
+rectangle "ClientHandler.java" as ClientHandler
+rectangle "NetworkInputHandler.java" as NetworkInputHandler
+rectangle "NetworkGameRenderer.java" as NetworkGameRenderer
+rectangle "NetworkFormatter.java" as NetworkFormatter
+rectangle "ClientMain.java" as ClientMain
+
+ServerMain --> GameServer : starts server
+GameServer --> ClientHandler : wraps each socket
+GameServer --> NetworkInputHandler : reads client input
+GameServer --> NetworkGameRenderer : sends game output
+GameServer --> NetworkFormatter : formats board state
+
+NetworkInputHandler --> ClientHandler : reads lines
+NetworkGameRenderer --> ClientHandler : sends messages
+NetworkGameRenderer --> NetworkFormatter : formats full game state
+
+ClientMain --> ClientHandler : sends user input
+ClientHandler --> ClientMain : sends prompts and board state
+ClientMain --> NetworkFormatter : understands state markers
+
+@enduml
