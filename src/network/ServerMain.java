@@ -2,26 +2,21 @@ package network;
 
 import util.SplashScreen;
 
-// it reads the port number from the command-line arguments, or uses 5000 by default
-// it creates a GameServer
-// it calls start() to begin listening for player connections
+// the start file for the server side of the game.
+// It reads the port number, shows the server splash screen,
+// and starts the GameServer so players can connect.
 
 public final class ServerMain {
 
+    // This is just a utility class, so we do not create ServerMain objects.
     private ServerMain() {}
 
+    // This method starts the server program on port 5000.
     public static void main(String[] args) {
         int port = 5000;
-        if (args.length >= 1) {
-            try {
-                port = Integer.parseInt(args[0].trim());
-            } catch (NumberFormatException ignored) {
-            }
-        }
 
-        // Show a server-themed ASCII splash before opening the socket.
+        // Show the server splash screen before opening the socket.
         SplashScreen.server(2, port);
         new GameServer(port).start();
     }
 }
-

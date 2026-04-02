@@ -13,23 +13,9 @@ import io.NetworkInputHandler;
 import util.AnsiSupport;
 import util.SplashScreen;
 
-// ai generated
-/**
- * Network client — thin terminal.
- *
- * <p>The client has two jobs:</p>
- * <ol>
- *   <li><b>Reader thread</b> — displays everything the server sends, buffering
- *       {@code <<STATE_BEGIN>>} … {@code <<STATE_END>>} blocks for atomic
- *       screen redraws.</li>
- *   <li><b>Main loop</b> — forwards one line of user input whenever the server
- *       sends {@link NetworkInputHandler#INPUT_NEEDED}.</li>
- * </ol>
- *
- * <p>All menus, prompts, and validation now live on the server side inside
- * {@link io.NetworkInputHandler} and {@link ui.NetworkGameRenderer}.
- * The client is intentionally dumb — it only displays and forwards.</p>
- */
+
+// AI assisted
+// the file shows whatever the server sends and sends back what the player type.
 public class ClientMain {
 
     private static final String ANSI_CLEAR        = "\u001B[2J\u001B[H";
@@ -40,10 +26,8 @@ public class ClientMain {
     private static volatile InputMode currentMode = InputMode.NONE;
     private static volatile boolean   connected   = true;
 
-    // -----------------------------------------------------------------------
-    // Entry point
-    // -----------------------------------------------------------------------
-
+    // start the client, and connect to the server,
+    // it keeps looping until the connection ends.
     public static void main(String[] args) {
         AnsiConsole.systemInstall();
         Scanner sc = new Scanner(System.in);
@@ -68,16 +52,27 @@ public class ClientMain {
 
             while (connected) {
                 switch (currentMode) {
-                    case NONE      -> pauseBriefly();
-                    case NAME      -> handleNameInput(sc, out);
-                    case START_ACK -> handleStartAckInput(sc, out);
-                    case WIN_SCORE -> handleWinScoreInput(sc, out);
-                    case ACTIVE    -> {
-                        // Server is waiting — forward exactly one line
-                        if (!sc.hasNextLine()) { connected = false; break; }
+                    case NONE:
+                        pauseBriefly();
+                        break;
+                    case NAME:
+                        handleNameInput(sc, out);
+                        break;
+                    case START_ACK:
+                        handleStartAckInput(sc, out);
+                        break;
+                    case WIN_SCORE:
+                        handleWinScoreInput(sc, out);
+                        break;
+                    case ACTIVE:
+                        // When the server asks for input, send one line back.
+                        if (!sc.hasNextLine()) {
+                            connected = false;
+                            break;
+                        }
                         out.println(sc.nextLine());
                         currentMode = InputMode.NONE;
-                    }
+                        break;
                 }
             }
 
@@ -88,10 +83,8 @@ public class ClientMain {
         sc.close();
     }
 
-    // -----------------------------------------------------------------------
-    // Server reader thread
-    // -----------------------------------------------------------------------
-
+    // it keeps reading messages from the server in the background.
+    // It also handles full-screen redraw blocks and input prompts.
     private static void readServerMessages(BufferedReader in) {
         try {
             String        line;
@@ -100,11 +93,11 @@ public class ClientMain {
 
             while ((line = in.readLine()) != null) {
 
-                // Silently absorb legacy BUYABLE markers (no longer sent by server)
+                // Ignore these old markers if they ever appear.
                 if (NetworkFormatter.BUYABLE_BEGIN.equals(line)
                         || NetworkFormatter.BUYABLE_END.equals(line)) continue;
 
-                // Buffer state blocks for atomic screen redraws
+                // Collect the full board screen before printing it all at once.
                 if (NetworkFormatter.STATE_BEGIN.equals(line)) {
                     readingState = true;
                     stateBuffer.setLength(0);
@@ -122,13 +115,13 @@ public class ClientMain {
                     continue;
                 }
 
-                // INPUT_NEEDED: server is blocking for user input — activate main loop
+                // The server is waiting, so let the main loop accept player input.
                 if (NetworkInputHandler.INPUT_NEEDED.equals(line)) {
                     currentMode = InputMode.ACTIVE;
                     continue;
                 }
 
-                // Print all other lines and check for setup mode-switches
+                // Print normal messages and see if the setup mode should change.
                 System.out.println(line);
                 updateMode(line);
             }
@@ -140,7 +133,7 @@ public class ClientMain {
         }
     }
 
-    /** Handles setup-phase mode changes detected in server messages. */
+    //  change the client input mode based on setup messages from the server.
     private static void updateMode(String line) {
         if (line.equalsIgnoreCase("Enter your name:")) {
             currentMode = InputMode.NAME;
@@ -151,10 +144,7 @@ public class ClientMain {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Setup input handlers
-    // -----------------------------------------------------------------------
-
+    //  asks the player for their name and sends it to the server.
     private static void handleNameInput(Scanner sc, PrintWriter out) {
         System.out.print("Name: ");
         if (!sc.hasNextLine()) { connected = false; return; }
@@ -163,6 +153,7 @@ public class ClientMain {
         currentMode = InputMode.NONE;
     }
 
+    // wait for the player to press Enter during setup.
     private static void handleStartAckInput(Scanner sc, PrintWriter out) {
         System.out.print("Press Enter to continue...");
         if (!sc.hasNextLine()) { connected = false; return; }
@@ -171,6 +162,7 @@ public class ClientMain {
         currentMode = InputMode.NONE;
     }
 
+    //  lets Player 1 type in the target score for the match.
     private static void handleWinScoreInput(Scanner sc, PrintWriter out) {
         System.out.println("┌───────────────────────────────┐");
         System.out.println("│ Player 1 Setup                │");
@@ -186,10 +178,7 @@ public class ClientMain {
         currentMode = InputMode.NONE;
     }
 
-    // -----------------------------------------------------------------------
-    // Connection helpers
-    // -----------------------------------------------------------------------
-
+    // gets the server IP either from the command line or by asking the user.
     private static String getHost(String[] args, Scanner sc) {
         if (args.length >= 1 && !args[0].isBlank()) {
             System.out.println("Connecting to " + args[0].trim() + ":" + getPort(args) + "...");
@@ -199,18 +188,12 @@ public class ClientMain {
         return sc.nextLine().trim();
     }
 
+    // use default port 5000 for the client connection.
     private static int getPort(String[] args) {
-        if (args.length >= 2) {
-            try { return Integer.parseInt(args[1].trim()); }
-            catch (NumberFormatException ignored) {}
-        }
         return 5000;
     }
 
-    // -----------------------------------------------------------------------
-    // Display utilities
-    // -----------------------------------------------------------------------
-
+    //  clears the terminal before printing a new board view.
     private static void clearScreen() {
         if (AnsiSupport.isSupported()) {
             System.out.print(ANSI_CLEAR);
@@ -219,6 +202,7 @@ public class ClientMain {
         }
     }
 
+    //  briefly sleeps(like a timer) so the loop does not run too fast while waiting.
     private static void pauseBriefly() {
         try { Thread.sleep(100); }
         catch (InterruptedException e) {

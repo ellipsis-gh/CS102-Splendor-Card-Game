@@ -15,27 +15,22 @@ import io.NetworkInputHandler;
 import logic.Game;
 import ui.NetworkGameRenderer;
 
-/**
- * Manages TCP connections for a 2-player networked game.
- *
- * <p>Responsibilities: accept sockets, collect player names, run
- * network-specific setup (win-score selection), then hand off to a
- * {@link GameEngine} wired with {@link NetworkInputHandler} and
- * {@link NetworkGameRenderer}. No game logic lives here.</p>
- */
+// This file handles the networking side of a 2-player game.
+// Its job is to wait for both players to connect, collect their names,
+// run the setup steps, and then hand everything to the normal game engine.
+// The actual Splendor game rules are not handled here.
 public class GameServer {
 
     private final int port;
     private static final int DEFAULT_WIN_SCORE = GameConfig.getWinningPoints();
 
+    // This saves the port number the server should listen on.
     public GameServer(int port) {
         this.port = port;
     }
 
-    // -----------------------------------------------------------------------
-    // Startup
-    // -----------------------------------------------------------------------
-
+    // This starts the server socket and waits for both players to connect.
+    // It also asks each player for their name before starting the game.
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started on port " + port);
@@ -70,10 +65,7 @@ public class GameServer {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Game wiring
-    // -----------------------------------------------------------------------
-
+    // This creates the game objects and connects the two clients to the engine.
     private void runGame(ClientHandler client1, ClientHandler client2) {
         try {
             int winScore = runNetworkSetup(client1, client2);
@@ -104,15 +96,8 @@ public class GameServer {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Network-specific setup (win-score selection before game starts)
-    // -----------------------------------------------------------------------
-
-    /**
-     * Player 1 selects the winning score; Player 2 just acknowledges.
-     *
-     * @return the chosen win score
-     */
+    // This runs the setup that only happens in network mode.
+    // Player 1 chooses the target score, while Player 2 just waits and confirms.
     private int runNetworkSetup(ClientHandler player1, ClientHandler player2) throws IOException {
         sendSetupScreen(player1, "PLAYER 1 SETUP", "You choose the win condition for this match.");
         player1.send("SETUP:WIN_SCORE");
@@ -120,10 +105,10 @@ public class GameServer {
         sendSetupScreen(player2, "PLAYER 2 READY", "Press Enter to continue while Player 1 sets up.");
         player2.send("SETUP:START_ACK");
 
-        // Player 2 just needs to acknowledge
+        // Player 2 only needs to press Enter so both clients stay in sync.
         if (player2.readLine() == null) throw new IOException("Player 2 disconnected during setup.");
 
-        // Player 1 picks a score
+        // Player 1 keeps entering a score until it is in the allowed range.
         int winScore = DEFAULT_WIN_SCORE;
         while (true) {
             String line = player1.readLine();
@@ -144,6 +129,7 @@ public class GameServer {
         return winScore;
     }
 
+    // This sends a simple setup box to one client.
     private void sendSetupScreen(ClientHandler client, String title, String body) {
         client.send("┌──────────────────────────────────────────────────────────┐");
         client.send("│ " + title);
@@ -152,10 +138,7 @@ public class GameServer {
         client.send("└──────────────────────────────────────────────────────────┘");
     }
 
-    // -----------------------------------------------------------------------
-    // Network info
-    // -----------------------------------------------------------------------
-
+    // This prints the server IP addresses so other players know what to connect to.
     private void printLocalAddresses() {
         System.out.println("Connect using one of these IPs:");
         try {
