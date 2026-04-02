@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.Scanner;
 
 import logic.Game;
+import model.Difficulty;
 import model.Player;
 import model.Token;
 import util.AnsiSupport;
@@ -197,6 +198,29 @@ public class ConsoleUI {
             }
         }
         return isAI;
+    }
+
+    /**
+     * Prompts for the AI difficulty level for a specific player.
+     *
+     * @param playerNumber 1-based player number (for display only)
+     * @return the chosen {@link Difficulty}
+     */
+    public Difficulty getAIDifficulty(int playerNumber) {
+        clearScreen();
+        System.out.println(bold("AI Difficulty") + dim("  ·  Player " + playerNumber));
+        System.out.println();
+        System.out.println("  [1] Easy   — naive play: random gems, buys first available card");
+        System.out.println("  [2] Medium — smart gem collection, scores and picks best cards");
+        System.out.println("  [3] Hard   — discount engine, endgame urgency, opponent blocking");
+        System.out.println("  [4] Insane — sends board to Claude AI for optimal decisions");
+        System.out.println();
+        return switch (promptIntInline("Difficulty", 1, 4, 2)) {
+            case 1 -> Difficulty.EASY;
+            case 3 -> Difficulty.HARD;
+            case 4 -> Difficulty.INSANE;
+            default -> Difficulty.MEDIUM;
+        };
     }
 
     public static String renderGameStateString(Game game, boolean ansi, int winScore) {

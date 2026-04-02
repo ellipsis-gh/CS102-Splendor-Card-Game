@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.InputHandler;
+import logic.BotMain;
 import logic.Game;
-import logic.SplendorAI;
 import model.Board;
 import model.Card;
 import model.Noble;
@@ -272,6 +272,18 @@ public class GameEngine {
     // -----------------------------------------------------------------------
 
     private void handleTokenReturn(Player p) {
+        if (!p.isHuman()) {
+            // AI: return tokens in one batch using the smart return logic
+            int toReturn = game.getNumTokensToReturn(p);
+            if (toReturn > 0) {
+                List<Token> returning = BotMain.chooseTokensToReturn(p, game.getBoard(), toReturn);
+                for (Token t : returning) game.returnToken(p, t, 1);
+                renderer.renderAIAction(p.getName() + " (AI) returns " + toReturn + " token(s).");
+            }
+            return;
+        }
+
+        // Human: interactive one-at-a-time return
         while (game.mustReturnTokens(p)) {
             int toReturn = game.getNumTokensToReturn(p);
 
@@ -317,7 +329,7 @@ public class GameEngine {
 
     private boolean executeAITurn(Player p) {
         Board  board  = game.getBoard();
-        String action = SplendorAI.chooseAction(p, board);
+        String action = BotMain.chooseAction(p, board, game.getPlayers());
 
         if (action == null) {
             renderer.renderAIAction(p.getName() + " (AI) could not decide. Skipping turn.");

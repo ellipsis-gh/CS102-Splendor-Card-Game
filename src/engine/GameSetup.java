@@ -11,6 +11,7 @@ import logic.Game;
 import model.Board;
 import model.Card;
 import model.Deck;
+import model.Difficulty;
 import model.Noble;
 import model.Player;
 
@@ -28,21 +29,27 @@ public class GameSetup {
 
     private GameSetup() {}
 
-    /** Convenience overload — all players use default names. */
+    /** Convenience overload — all players use default names and MEDIUM AI difficulty. */
     public static Game create(int numPlayers, boolean[] isAI) {
-        return create(numPlayers, isAI, null);
+        return create(numPlayers, isAI, null, null);
+    }
+
+    /** Convenience overload — custom names, MEDIUM AI difficulty. */
+    public static Game create(int numPlayers, boolean[] isAI, String[] playerNames) {
+        return create(numPlayers, isAI, playerNames, null);
     }
 
     /**
      * Builds decks, selects nobles, and creates Player objects before
      * constructing the {@link Game}.
      *
-     * @param numPlayers  total number of players (2-4)
-     * @param isAI        {@code true} at index i → player i is AI-controlled
-     * @param playerNames optional custom names; null or blank entries fall back
-     *                    to "Player: N" / "AI: N"
+     * @param numPlayers   total number of players (2-4)
+     * @param isAI         {@code true} at index i → player i is AI-controlled
+     * @param playerNames  optional custom names; null or blank entries fall back
+     *                     to "Player: N" / "AI: N"
+     * @param difficulties optional difficulty per AI player; null entries default to MEDIUM
      */
-    public static Game create(int numPlayers, boolean[] isAI, String[] playerNames) {
+    public static Game create(int numPlayers, boolean[] isAI, String[] playerNames, Difficulty[] difficulties) {
         // --- Cards ---
         List<Card> allCards = new ArrayList<>();
         try {
@@ -92,7 +99,10 @@ public class GameSetup {
             } else {
                 name = "Player: " + (i + 1);
             }
-            players.add(new Player(name, !isAI[i]));
+            Difficulty diff = (isAI[i] && difficulties != null && i < difficulties.length && difficulties[i] != null)
+                    ? difficulties[i]
+                    : Difficulty.MEDIUM;
+            players.add(new Player(name, !isAI[i], isAI[i] ? diff : null));
         }
 
         return new Game(board, players);

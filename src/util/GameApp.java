@@ -9,7 +9,7 @@ import java.util.Scanner;
 import config.GameConfig;
 import game.CardLoader;
 import logic.Game;
-import logic.SplendorAI;
+import logic.BotMain;
 import model.Board;
 import model.Card;
 import model.Deck;
@@ -472,7 +472,7 @@ public class GameApp {
 
     private static boolean doAITurn(Game game, Player p) {
         Board board  = game.getBoard();
-        String action = SplendorAI.chooseAction(p, board);
+        String action = BotMain.chooseAction(p, board, game.getPlayers());
 
         if (action == null) {
             System.out.println("AI could not decide. Skipping turn.");
@@ -549,7 +549,7 @@ public class GameApp {
     private static void returnExcessTokensAI(Game game, Player p) {
         if (!game.mustReturnTokens(p)) return;
         int toReturn = game.getNumTokensToReturn(p);
-        List<Token> tokens = SplendorAI.chooseTokensToReturn(p, game.getBoard(), toReturn);
+        List<Token> tokens = BotMain.chooseTokensToReturn(p, game.getBoard(), toReturn);
         for (Token t : tokens) game.returnToken(p, t, 1);
         System.out.println("AI returns " + toReturn + " token(s).");
     }

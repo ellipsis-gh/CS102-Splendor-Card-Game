@@ -7,6 +7,7 @@ import engine.GameEngine;
 import engine.GameSetup;
 import io.ConsoleInputHandler;
 import logic.Game;
+import model.Difficulty;
 import ui.ConsoleGameRenderer;
 import util.SplashScreen;
 import util.ui.ConsoleUI;
@@ -34,8 +35,14 @@ public class Main {
         int numPlayers     = ui.getNumberOfPlayers();
         boolean[] isAI     = ui.getPlayerTypes(numPlayers);
 
+        // For each AI player, ask what difficulty level they should be
+        Difficulty[] difficulties = new Difficulty[numPlayers];
+        for (int i = 0; i < numPlayers; i++) {
+            if (isAI[i]) difficulties[i] = ui.getAIDifficulty(i + 1);
+        }
+
         // Build game + wire engine
-        Game game                    = GameSetup.create(numPlayers, isAI);
+        Game game                    = GameSetup.create(numPlayers, isAI, null, difficulties);
         ConsoleInputHandler  input   = new ConsoleInputHandler(sc);
         ConsoleGameRenderer  renderer = new ConsoleGameRenderer();
 

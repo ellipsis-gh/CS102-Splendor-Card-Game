@@ -10,19 +10,27 @@ import interfaces.IPlayer;
 public class Player implements IPlayer {
     private final String name;
     private final boolean isHuman; // false means the AI is controlling this player
+    private final Difficulty difficulty; // only meaningful when !isHuman
 
     private final Map<Token, Integer> tokens = new HashMap<>();
     private final List<Card> hand = new ArrayList<>();           // reserved cards (max 3)
     private final List<Card> purchasedCards = new ArrayList<>();  // bought cards
     private final List<Noble> nobles = new ArrayList<>();
 
-    public Player(String name, boolean isHuman) {
+    /** Full constructor — pass null difficulty for human players. */
+    public Player(String name, boolean isHuman, Difficulty difficulty) {
         this.name = name;
         this.isHuman = isHuman;
+        this.difficulty = difficulty;
         // start every token count at 0
         for (Token t : Token.values()) {
             tokens.put(t, 0);
         }
+    }
+
+    /** Convenience constructor — AI players default to MEDIUM difficulty. */
+    public Player(String name, boolean isHuman) {
+        this(name, isHuman, isHuman ? null : Difficulty.MEDIUM);
     }
 
     public String getName() {
@@ -31,6 +39,10 @@ public class Player implements IPlayer {
 
     public boolean isHuman() {
         return isHuman;
+    }
+
+    public Difficulty getDifficulty() {
+        return difficulty;
     }
 
     public Map<Token, Integer> getTokens() {
