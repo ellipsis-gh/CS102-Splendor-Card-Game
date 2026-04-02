@@ -123,9 +123,9 @@ public class Game {
 
     // take 3 different gems — assumes canTakeThreeDifferentGems already returned true
     public void takeThreeDifferentGems(Player player, Token token1, Token token2, Token token3) {
-        if (!canTakeThreeDifferentGems(player, token1, token2, token3)) {
-            throw new IllegalArgumentException("Invalid move: cannot take 3 different gems");
-        }
+        // if (!canTakeThreeDifferentGems(player, token1, token2, token3)) {
+        //     throw new IllegalArgumentException("Invalid move: cannot take 3 different gems");
+        // }
 
         // remove from board, give to player
         board.removeToken(token1, 1);
@@ -139,9 +139,9 @@ public class Game {
 
     // take 2 of the same gem — assumes canTakeTwoSameGems already returned true
     public void takeTwoSameGems(Player player, Token token) {
-        if (!canTakeTwoSameGems(player, token)) {
-            throw new IllegalArgumentException("Invalid move: cannot take 2 same gems");
-        }
+        // if (!canTakeTwoSameGems(player, token)) {
+        //     throw new IllegalArgumentException("Invalid move: cannot take 2 same gems");
+        // }
 
         board.removeToken(token, 2);
         player.addTokens(token, 2);
